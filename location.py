@@ -2,8 +2,8 @@
 
 import urllib.request
 import json
-DEFAULT_DATA = {'zip' : '98115', 'city': 'Seattle', 'state': 'WA'}
-REAUIRED_FIELDS = ['zip', 'city', 'region']
+DEFAULT_DATA = {'zip' : '98115', 'city': 'Seattle', 'state': 'WA', 'lat': '47.697029', 'lon': '-122.322217'}
+REAUIRED_FIELDS = ['zip', 'city', 'region', 'lat', 'lon']
 
 class Location(object):
 
@@ -37,6 +37,12 @@ class Location(object):
     def get_state(self):
         return self.data['state']
     
+    def get_lat(self):
+        return self.data['lat']
+
+    def get_long(self):
+        return self.data['long']
+    
     def validate_data(self, ip_data):
         status = ip_data.get('status')
         if status is None or status != "success":
@@ -46,8 +52,6 @@ class Location(object):
                 print('field %s is missing' % (field))
                 return False
         return True
-
-
 
 
 def main():
