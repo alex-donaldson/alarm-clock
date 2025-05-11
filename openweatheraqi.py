@@ -23,6 +23,16 @@ AQI_CATEGORY_MAP = {
     AQI_POOR: "Poor",
     AQI_VERY_POOR: "Very Poor"
 }
+COMPONENT_NAMES = {
+    "co": "Carbon Monoxide",
+    "no": "Nitric Oxide",
+    "no2": "Nitrogen Dioxide",
+    "o3": "Ozone",
+    "so2": "Sulfur Dioxide",
+    "pm2_5": "Particulate Matter (2.5 micrometers)",
+    "pm10": "Particulate Matter (10 micrometers)",
+    "nh3": "Ammonia"
+}
 
 class RemoteAQI:
     """
@@ -37,6 +47,7 @@ class RemoteAQI:
         self.lon = lon
         self.key = key
         self.forecast_url = AQI_URL.format(lat=self.lat, lon=self.lon, key=self.key)
+        print(f"Forecast URL: {self.forecast_url}")
 
     def get_raw_forecast_data(self):
         """
@@ -81,7 +92,6 @@ class RemoteAQI:
             timestamp = entry["timestamp"]
             aqi = entry["aqi"]
             category = entry["category"]
-            components = entry["components"]
 
             hourly_aqi.append({
                 "timestamp": timestamp,
@@ -90,9 +100,47 @@ class RemoteAQI:
             })
         return hourly_aqi
     
+    # Take the hourly forecast and return time periods that group unchanged AQI values
+    def get_hourly_aqi_forecast_periods(self):
+        """
+        Get the hourly AQI forecast for the next 24 hours, grouped by unchanged AQI values.
+        """
+        forecast = self.get_hourly_aqi_forecast()
+        hourly_aqi = []
+        current_aqi = None
+        start_time = None
+        current_category = None
+
+        for entry in forecast[:24]:
+            timestamp = entry["timestamp"]
+            aqi = entry["aqi"]
+            category = entry["category"]
+
+            if current_aqi is None or aqi != current_aqi:
+                if current_aqi is not None:
+                    hourly_aqi.append({
+                        "start_time": start_time,
+                        "end_time": timestamp,
+                        "aqi": current_aqi,
+                        "category": current_category
+                    })
+                start_time = timestamp
+                current_aqi = aqi
+                current_category = category
+        # Add the last period
+        if current_aqi is not None:
+            hourly_aqi.append({
+                "start_time": start_time,
+                "end_time": forecast[23]["timestamp"],
+                "aqi": current_aqi,
+                "category": category
+            })
+
+        return hourly_aqi
+    
     def get_detailed_current_aqi(self):
         """
-        Get the current AQI and its components.
+        Get the current AQI and its components with human-readable names.
         """
         forecast = self.get_forecast()
         current_aqi = forecast[0]
@@ -100,9 +148,12 @@ class RemoteAQI:
         aqi = current_aqi["aqi"]
         category = current_aqi["category"]
         components = current_aqi["components"]
+
         # Convert components to a human-readable format
-        components = {k: f"{v} μg/m³" for k, v in components.items()}
-        
+        components = {
+            COMPONENT_NAMES.get(k, k): f"{v} μg/m³" for k, v in components.items()
+        }
+
         return {
             "timestamp": timestamp,
             "aqi": aqi,
@@ -159,17 +210,22 @@ def main():
     print(f"  Components: {current_aqi['components']}")
     print()
     # Print the hourly AQI forecast
-    hourly_aqi_forecast = ra.get_hourly_aqi_forecast()
+    hourly_aqi_forecast = ra.get_hourly_aqi_forecast_periods()
     print("[Hourly AQI Forecast]")
     for hour in hourly_aqi_forecast:
-        print(f"Timestamp: {hour['timestamp']}")
+        print(hour['start_time'], hour['end_time'])
         print(f"  AQI: {hour['aqi']} ({hour['category']})")
-        print()   
-    print("[7-Day AQI Forecast]")
-    for day in daily_aqi_forecast:
-        print(f"Date: {day['date']}")
-        print(f"  AQI: {day['aqi']} ({day['category']})")
         print()
+    
+    # for hour in ra.get_hourly_aqi_forecast():
+    #     print(f"Timestamp: {hour['timestamp']}")
+    #     print(f"  AQI: {hour['aqi']} ({hour['category']})")
+    #     print()
+    # print("[7-Day AQI Forecast]")
+    # for day in daily_aqi_forecast:
+    #     print(f"Date: {day['date']}")
+    #     print(f"  AQI: {day['aqi']} ({day['category']})")
+    #     print()
 
 if __name__ == '__main__':
     main()
