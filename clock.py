@@ -4,9 +4,10 @@ from weather import RemoteWeather
 from openweatheraqi import RemoteAQI, COMPONENT_NAMES
 from location import Location
 
+# Constants
 CLOCK_FREQUENCY = 60  # seconds
-WEATHER_FREQUENCY = 2  # minutes
-FORECAST_FREQUENCY = 2  # minutes
+WEATHER_FREQUENCY = 1  # minutes
+FORECAST_FREQUENCY = 1  # minutes
 
 class AlarmClock:
     """
@@ -35,7 +36,7 @@ class AlarmClock:
         Print the current temperature, wind speed, and AQI.
         """
         # Fetch weather data
-        forecast = self.weather.get_forecast_data()[0]  # Get the current period
+        forecast = self.weather.get_current_weather()  # Get the current period
         temperature = self.weather.get_temp_string(forecast)
         wind_speed = forecast["windSpeed"]
 
@@ -63,19 +64,14 @@ class AlarmClock:
         """
         Print the hourly AQI forecast for the next 24 hours.
         """
-        forecast = self.aqi.get_forecast()[:24]  # Get the next 24 AQI periods
+        forecast = self.aqi.get_hourly_aqi_forecast()
         print("[Hourly AQI Forecast]")
         for entry in forecast:
             timestamp = entry["timestamp"]
             aqi = entry["aqi"]
             category = entry["category"]
-            components = entry["components"]
 
             print(f"Timestamp: {timestamp} | AQI: {aqi} ({category})")
-            print("Components:")
-            for component, value in components.items():
-                human_name = COMPONENT_NAMES.get(component, component)
-                print(f"  {human_name}: {value} μg/m³")
             print()
 
     def print_daily_summary_forecast(self):
@@ -83,11 +79,11 @@ class AlarmClock:
         Print the daily summary weather and AQI forecast for the next 7 days.
         """
         print("[7-Day Weather and AQI Summary Forecast]")
-        # Fetch daily weather forecast (assuming the weather API provides daily data)
+        # Fetch daily weather forecast
         daily_weather = self.weather.get_daily_forecast()[:7]  # Get the next 7 days
         daily_aqi = self.aqi.get_daily_aqi_forecast()[:7]  # Get the next 7 days of AQI
 
-        for i in range(7):
+        for i in range(len(daily_weather)):
             weather = daily_weather[i]
             aqi = daily_aqi[i]
 

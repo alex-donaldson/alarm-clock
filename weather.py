@@ -64,6 +64,18 @@ class RemoteWeather:
 
         return daily_forecast
 
+    def get_current_weather(self):
+        """
+        Get the current weather conditions.
+        """
+        current_conditions = self.get_raw_daily_forecast_data()["properties"]["periods"][0]
+        return {
+            "temperature": current_conditions["temperature"],
+            "wind_speed": current_conditions["windSpeed"],
+            "short_forecast": current_conditions["shortForecast"],
+            "temp_unit": current_conditions["temperatureUnit"],
+        }
+    
 def main():
     """
     Main function to test the RemoteWeather class.
@@ -71,15 +83,16 @@ def main():
     lat, lon = 47.697, -122.3222  # Example coordinates
     weather = RemoteWeather(lat, lon)
     daily_forecast = weather.get_daily_forecast()
+    print(weather.get_current_weather())
 
-    print("[7-Day Weather Forecast]")
-    for day in daily_forecast:
-        print(f"Date: {day['date']}")
-        print(f"  High Temp: {day['high_temp']}°F")
-        print(f"  Low Temp: {day['low_temp']}°F")
-        print(f"  Wind Speed: {day['wind_speed']}")
-        print(f"  Forecast: {day['short_forecast']}")
-        print()
+    # print("[7-Day Weather Forecast]")
+    # for day in daily_forecast:
+    #     print(f"Date: {day['date']}")
+    #     print(f"  High Temp: {day['high_temp']}°F")
+    #     print(f"  Low Temp: {day['low_temp']}°F")
+    #     print(f"  Wind Speed: {day['wind_speed']}")
+    #     print(f"  Forecast: {day['short_forecast']}")
+    #     print()
 
 if __name__ == "__main__":
     main()
