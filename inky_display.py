@@ -63,6 +63,7 @@ def main():
         message = message + (f"\nGas Resistance: {data['gas_resistance']:.2f} Ohms")
         message = message + (f"\nRelative Humidity: {data['relative_humidity']:.2f} %")
         message = message + (f"\nAltitude: {data['altitude']:.2f} m")
+        print(f"Displaying message: {message}")
         inky.print_message(message)
         time.sleep(3600)  # Wait for 2 seconds before reading again
     # Example message
