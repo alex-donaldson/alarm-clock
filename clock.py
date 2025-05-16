@@ -23,15 +23,20 @@ class AlarmClock:
         with open('/private/keys/openweather.txt', encoding="utf-8") as f:
             api_key = f.read().strip()
         self.aqi = RemoteAQI(self.location.get_lat(), self.location.get_lon(), api_key)
+        self.time_message = self.get_time()
+        self.weather_message = self.get_weather()
+        self.hourly_forecast = self.get_hourly_forecast()
+        self.daily_forecast = self.get_daily_summary_forecast()
+        self.aqi_forecast = self.get_hourly_aqi_forecast()
 
-    def print_time(self):
+    def get_time(self):
         """
         Print the current time to the screen.
         """
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print(f"[Time] {now}")
+        return (f"[Time] {now}")
 
-    def print_weather(self):
+    def get_weather(self):
         """
         Print the current temperature, wind speed, and AQI.
         """
@@ -45,40 +50,42 @@ class AlarmClock:
         aqi = aqi_forecast["aqi"]
         category = aqi_forecast["category"]
 
-        print(f"[Weather] Temperature: {temperature}, Wind Speed: {wind_speed}")
-        print(f"[AQI] {aqi} ({category})")
+        return (f"[Weather] Temperature: {temperature}, Wind Speed: {wind_speed}",
+                f"\n[AQI] {aqi} ({category})")
 
-    def print_hourly_forecast(self):
+
+    def get_hourly_forecast(self):
         """
         Print the hourly weather forecast for the next 24 hours.
         """
         forecast = self.weather.get_forecast_data()[:24]  # Get the next 24 periods
-        print("[Hourly Weather Forecast]")
+        hourly_forecast = ("[Hourly Weather Forecast]")
         for period in forecast:
             time_range = self.weather.get_dur_string(period["startTime"], period["endTime"])
             temperature = self.weather.get_temp_string(period)
             wind_speed = period["windSpeed"]
-            print(f"{time_range} | Temperature: {temperature}, Wind Speed: {wind_speed}")
+            hourly_forecast = hourly_forecast + (f"\n{time_range} | Temperature: {temperature}, Wind Speed: {wind_speed}")
+        return hourly_forecast
 
-    def print_hourly_aqi_forecast(self):
+    def get_hourly_aqi_forecast(self):
         """
         Print the hourly AQI forecast for the next 24 hours.
         """
         forecast = self.aqi.get_hourly_aqi_forecast()
-        print("[Hourly AQI Forecast]")
+
+        message = ("[Hourly AQI Forecast]")
         for entry in forecast:
             timestamp = entry["timestamp"]
             aqi = entry["aqi"]
             category = entry["category"]
 
-            print(f"Timestamp: {timestamp} | AQI: {aqi} ({category})")
-            print()
+            message = message + (f"\nTimestamp: {timestamp} | AQI: {aqi} ({category})\n")
 
-    def print_daily_summary_forecast(self):
+    def get_daily_summary_forecast(self):
         """
         Print the daily summary weather and AQI forecast for the next 7 days.
         """
-        print("[7-Day Weather and AQI Summary Forecast]")
+        daily_forecast = ("[7-Day Weather and AQI Summary Forecast]")
         # Fetch daily weather forecast
         daily_weather = self.weather.get_daily_forecast()[:7]  # Get the next 7 days
         daily_aqi = self.aqi.get_daily_aqi_forecast()[:7]  # Get the next 7 days of AQI
@@ -95,10 +102,19 @@ class AlarmClock:
             aqi_value = aqi["aqi"]
             aqi_category = aqi["category"]
 
-            print(f"Date: {date}")
-            print(f"  Weather: High {high_temp}, Low {low_temp}, Wind Speed: {wind_speed}")
-            print(f"  AQI: {aqi_value} ({aqi_category})")
-            print()
+            daily_forecast = daily_forecast + (f"\nDate: {date}\n High Temp: {high_temp}, Low Temp: {low_temp}, Wind Speed: {wind_speed}")
+            daily_forecast = daily_forecast + (f"\n AQI: {aqi_value} ({aqi_category})")
+
+
+    def print_output(self):
+        """
+        Print the current time, weather, and forecast to the screen.
+        """
+        print(self.time_message)
+        print(self.weather_message)
+        print(self.hourly_forecast)
+        print(self.daily_forecast)
+
 
     def run(self):
         """
@@ -108,19 +124,20 @@ class AlarmClock:
         long_counter = 0
 
         while True:
-            self.print_time()
+            self.time_message = self.get_time()
             short_counter += 1
             long_counter += 1
 
             if short_counter % WEATHER_FREQUENCY == 0:
-                self.print_weather()
+                self.weather_message = self.get_weather()
 
             if long_counter == FORECAST_FREQUENCY:
-                self.print_hourly_forecast()
-                self.print_hourly_aqi_forecast()
-                self.print_daily_summary_forecast()
+                self.hourly_forecast = self.get_hourly_forecast()
+                self.aqi_forecast = self.get_hourly_aqi_forecast()
+                self.daily_forecast = self.get_daily_summary_forecast()
                 long_counter = 0
 
+            self.print_output()
             time.sleep(CLOCK_FREQUENCY)  # Wait for 1 minute
 
 if __name__ == "__main__":
