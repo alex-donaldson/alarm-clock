@@ -16,7 +16,7 @@ class BME688Sensor:
         """
         if i2c is None:
             i2c = busio.I2C(board.SCL, board.SDA)
-        self.sensor = Adafruit_BME680_I2C(i2c)
+        self.sensor = Adafruit_BME680_I2C(i2c, address=0x77)
         self.sensor.sea_level_pressure = sea_level_pressure
 
     def read_data(self):
