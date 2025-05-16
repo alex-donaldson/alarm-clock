@@ -34,7 +34,7 @@ class InkyDisplay:
         """
         self.clear()
         font = ImageFont.truetype(font_path, font_size)
-        text_width, text_height = self.draw.textsize(message, font=font)
+        _, _, text_width, text_height = font.getbbox(message)
         x = (self.width - text_width) // 2
         y = (self.height - text_height) // 2
         self.draw.text((x, y), message, fill=self.display.BLACK, font=font)
