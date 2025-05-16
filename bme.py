@@ -28,7 +28,9 @@ class BME688Sensor:
             "temperature": self.sensor.temperature,  # Celsius
             "humidity": self.sensor.humidity,        # Percentage
             "pressure": self.sensor.pressure,        # hPa
-            "gas_resistance": self.sensor.gas        # Ohms
+            "gas_resistance": self.sensor.gas,        # Ohms
+            "relative_humidity": self.sensor.relative_humidity,  # Percentage
+            "altitude": self.sensor.altitude,        # Meters
         }
 
 def main():
@@ -40,10 +42,14 @@ def main():
 
     while True:
         data = bme688.read_data()
-        print(f"Temperature: {data['temperature']:.2f} °C")
+        print(f"Temperature C: {data['temperature']:.2f} °C")
+        temperature_f = (data['temperature'] * 9 / 5) + 32
+        print(f"Temperature F: {temperature_f:.2f} °F")
         print(f"Humidity: {data['humidity']:.2f} %")
         print(f"Pressure: {data['pressure']:.2f} hPa")
         print(f"Gas Resistance: {data['gas_resistance']:.2f} Ohms")
+        print(f"Relative Humidity: {data['relative_humidity']:.2f} %")
+        print(f"Altitude: {data['altitude']:.2f} m")
         print()
         time.sleep(2)  # Wait for 2 seconds before reading again
 
