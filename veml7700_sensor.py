@@ -15,7 +15,7 @@ class VEML7700Sensor:
         """
         if i2c is None:
             i2c = busio.I2C(board.SCL, board.SDA)
-        self.sensor = VEML7700(i2c, address=0x16)
+        self.sensor = VEML7700(i2c, address=0x10)
 
     def read_data(self):
         """
