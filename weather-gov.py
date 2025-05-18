@@ -64,6 +64,25 @@ class RemoteWeather:
 
         return daily_forecast
 
+    def get_hourly_forecast(self):
+        """
+        Get the hourly weather forecast for the next 24 hours.
+        """
+        raw_data = self.get_raw_daily_forecast_data()
+        periods = raw_data["properties"]["periods"]
+        hourly_forecast = []
+
+        for period in periods:
+            if "hour" in period["name"].lower():
+                hourly_forecast.append({
+                    "time": datetime.strptime(period["startTime"], WEATHER_TIME_FORMAT).strftime("%I:%M %p"),
+                    "temperature": period["temperature"],
+                    "wind_speed": period["windSpeed"],
+                    "short_forecast": period["shortForecast"]
+                })
+        return hourly_forecast
+
+
     def get_current_weather(self):
         """
         Get the current weather conditions.

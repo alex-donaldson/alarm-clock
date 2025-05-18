@@ -1,75 +1,111 @@
 import time
-from bme import BME688Sensor
-from inky.auto import auto
+from datetime import datetime
 from PIL import Image, ImageFont, ImageDraw
+from inky.auto import auto
+
+from weather import RemoteWeather
+from openweatheraqi import RemoteAQI
+from bme import BME688Sensor
+from sgp30_sensor import SGP30Sensor
+
+BACKGROUND_IMAGE = "background_imgs/tree.jpg"
 
 class InkyDisplay:
-    """
-    A class to interface with the Pimoroni Inky e-ink display.
-    """
-
     def __init__(self):
-        """
-        Initialize the Inky display.
-        """
-        self.display = auto()  # Automatically detect the Inky display
+        self.display = auto()
         self.display.set_border(self.display.WHITE)
         self.width = self.display.WIDTH
         self.height = self.display.HEIGHT
-        self.image = Image.new("P", (self.width, self.height), self.display.WHITE)
+        # Load background image and convert to palette
+        self.background = Image.open(BACKGROUND_IMAGE).resize((self.width, self.height)).convert("P")
+        self.image = self.background.copy()
         self.draw = ImageDraw.Draw(self.image)
+        # Adjust font paths/sizes as needed for your system
+        self.font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 60)
+        self.font_med = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 36)
+        self.font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
 
     def clear(self):
-        """
-        Clear the display by filling it with a white background.
-        """
-        self.draw.rectangle((0, 0, self.width, self.height), fill=self.display.WHITE)
+        self.image = self.background.copy()
+        self.draw = ImageDraw.Draw(self.image)
+
+    def render(self, weather, aqi, bme, sgp30):
+        self.clear()
+        # --- Current Weather (center, largest area) ---
+        x_c, y_c = 350, 60
+        self.draw.text((x_c, y_c), f"{weather['current_temp']}°F", self.display.RED, font=self.font_large)
+        self.draw.text((x_c, y_c+80), f"{weather['current_desc']}", self.display.BLACK, font=self.font_med)
+        self.draw.text((x_c, y_c+130), f"Humidity: {bme['humidity']:.0f}%", self.display.BLACK, font=self.font_med)
+        self.draw.text((x_c, y_c+180), f"Pressure: {bme['pressure']:.0f} hPa", self.display.BLACK, font=self.font_med)
+        self.draw.text((x_c, y_c+230), f"eCO2: {sgp30['eCO2']} ppm", self.display.BLACK, font=self.font_med)
+        self.draw.text((x_c, y_c+270), f"TVOC: {sgp30['TVOC']} ppb", self.display.BLACK, font=self.font_med)
+        self.draw.text((x_c, y_c+320), f"AQI: {aqi['aqi']} ({aqi['category']})", self.display.RED, font=self.font_med)
+
+        # --- Right: 6-day Forecast ---
+        x_r, y_r = 900, 40
+        self.draw.text((x_r, y_r), "Next 6 Days", self.display.RED, font=self.font_med)
+        y_r += 50
+        for day in weather['daily'][1:7]:
+            self.draw.text((x_r, y_r), f"{day['date']}", self.display.BLACK, font=self.font_small)
+            self.draw.text((x_r+120, y_r), f"H:{day['high_temp']}° L:{day['low_temp']}°", self.display.RED, font=self.font_small)
+            self.draw.text((x_r+320, y_r), f"Precip:{day.get('precip', '--')}%", self.display.BLACK, font=self.font_small)
+            self.draw.text((x_r+480, y_r), f"AQI:{day.get('aqi', '--')}", self.display.RED, font=self.font_small)
+            y_r += 45
+
+        # --- Left: 24-hour Hourly Forecast ---
+        x_l, y_l = 20, 40
+        self.draw.text((x_l, y_l), "Next 24 Hours", self.display.RED, font=self.font_med)
+        y_l += 50
+        for hour in weather['hourly'][:24]:
+            self.draw.text((x_l, y_l), f"{hour['time']}", self.display.BLACK, font=self.font_small)
+            self.draw.text((x_l+90, y_l), f"{hour['temp']}°", self.display.RED, font=self.font_small)
+            self.draw.text((x_l+160, y_l), f"P:{hour.get('precip', '--')}%", self.display.BLACK, font=self.font_small)
+            self.draw.text((x_l+240, y_l), f"AQI:{hour.get('aqi', '--')}", self.display.RED, font=self.font_small)
+            y_l += 32
+            if y_l > self.height - 100:
+                break  # Prevent overflow
+
+        # --- Bottom: Sunrise/Sunset ---
+        sunrise = weather.get('sunrise', '--:--')
+        sunset = weather.get('sunset', '--:--')
+        self.draw.text((self.width//2-200, self.height-60), f"Sunrise: {sunrise}   Sunset: {sunset}", self.display.YELLOW, font=self.font_med)
+
         self.display.set_image(self.image)
         self.display.show()
 
-    def print_message(self, message, font_path="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size=22):
-        """
-        Print a message to the Inky display.
-        :param message: The message to display.
-        :param font_path: Path to the font file.
-        :param font_size: Font size for the message.
-        """
-        self.clear()
-        font = ImageFont.truetype(font_path, font_size)
-        _, _, text_width, text_height = font.getbbox(message)
-        x = (self.width - text_width) // 2
-        y = (self.height - text_height) // 2
-        self.draw.text((x, y), message, fill=self.display.BLACK, font=font)
-        self.display.set_image(self.image)
-        self.display.show()
+def fetch_all_data():
+    # --- Weather ---
+    weather_api = RemoteWeather(47.697, -122.3222)
+    daily = weather_api.get_daily_forecast()
+    hourly = weather_api.get_hourly_forecast()
+    current = weather_api.get_current_weather()
+    sunrise = current.get('sunrise', '--:--')
+    sunset = current.get('sunset', '--:--')
+    # --- AQI ---
+    aqi_api = RemoteAQI(47.697, -122.3222, open('/private/keys/openweather.txt').read().strip())
+    aqi_now = aqi_api.get_detailed_current_aqi()
+    # --- BME688 ---
+    bme = BME688Sensor().read_data()
+    # --- SGP30 ---
+    sgp30 = SGP30Sensor().read_data()
+    # --- Compose data dicts for rendering ---
+    weather = {
+        'current_temp': int(current['temperature']),
+        'current_desc': current['weather'],
+        'daily': daily,
+        'hourly': hourly,
+        'sunrise': sunrise,
+        'sunset': sunset,
+    }
+    return weather, aqi_now, bme, sgp30
 
 def main():
-    """
-    Main function to test the Inky display.
-    """
-    print("Initializing Inky display...")
     inky = InkyDisplay()
-    print("Initializing BME688 sensor...")
-    bme688 = BME688Sensor()
-
     while True:
-        data = bme688.read_data()
-        
-        message = (f"Temperature C: {data['temperature']:.2f} °C")
-        temperature_f = (data['temperature'] * 9 / 5) + 32
-        message = message + (f"\nTemperature F: {temperature_f:.2f} °F")
-        message = message + (f"\nHumidity: {data['humidity']:.2f} %")
-        message = message + (f"\nPressure: {data['pressure']:.2f} hPa")
-        message = message + (f"\nGas Resistance: {data['gas_resistance']:.2f} Ohms")
-        message = message + (f"\nRelative Humidity: {data['relative_humidity']:.2f} %")
-        message = message + (f"\nAltitude: {data['altitude']:.2f} m")
-        print(f"Displaying message: {message}")
-        inky.print_message(message)
-        time.sleep(3600)  # Wait for 2 seconds before reading again
-    # Example message
-    # message = "Hello, Inky!"
-    # print(f"Displaying message: {message}")
-    # inky.print_message(message)
+        weather, aqi, bme, sgp30 = fetch_all_data()
+        inky.render(weather, aqi, bme, sgp30)
+        # Update every hour
+        time.sleep(3600)
 
 if __name__ == "__main__":
     main()
