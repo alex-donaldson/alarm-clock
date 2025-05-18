@@ -39,7 +39,10 @@ class InkyDisplay:
         self.draw.text((x_c, y_c+180), f"Pressure: {bme['pressure']:.0f} hPa", self.display.BLACK, font=self.font_med)
         self.draw.text((x_c, y_c+230), f"eCO2: {sgp30['eCO2']} ppm", self.display.BLACK, font=self.font_med)
         self.draw.text((x_c, y_c+270), f"TVOC: {sgp30['TVOC']} ppb", self.display.BLACK, font=self.font_med)
-        # self.draw.text((x_c, y_c+320), f"AQI: {aqi['aqi']} ({aqi['category']})", self.display.RED, font=self.font_med)
+        # Timestamp
+        timestamp = datetime.now().strftime("Updated: %Y-%m-%d %H:%M")
+        self.draw.text((x_c, y_c+320), timestamp, self.display.BLACK, font=self.font_small)
+        # self.draw.text((x_c, y_c+360), f"AQI: {aqi['aqi']} ({aqi['category']})", self.display.RED, font=self.font_med)
 
         # --- Right: 6-day Forecast ---
         x_r, y_r = 900, 40
