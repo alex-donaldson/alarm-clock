@@ -8,7 +8,7 @@ from openweatheraqi import RemoteAQI
 from bme import BME688Sensor
 from sgp30_sensor import SGP30Sensor
 
-BACKGROUND_IMAGE = "background_imgs/tree.jpg"
+BACKGROUND_IMAGE = "background_imgs/tree2.jpg"
 
 class InkyDisplay:
     def __init__(self):
