@@ -7,11 +7,11 @@ import json
 DEFAULT_DATA = {
     'zip': '98115',
     'city': 'Seattle',
-    'state': 'WA',
+    'region': 'WA',
     'lat': '47.697029',
     'lon': '-122.322217'
 }
-REQUIRED_FIELDS = ['zip', 'city', 'state', 'lat', 'lon']
+REQUIRED_FIELDS = ['zip', 'city', 'region', 'lat', 'lon']
 
 class Location:
     """
@@ -22,6 +22,7 @@ class Location:
         try:
             ip = self.get_ip()
             data = self.get_ip_data(ip)
+            print("IP Data:", data)
             if self.validate_data(data):
                 self.data = data
             else:

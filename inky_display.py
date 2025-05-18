@@ -1,12 +1,10 @@
 import time
 from datetime import datetime
 from PIL import Image, ImageFont, ImageDraw
+from data_agg import DataAggregator
 from inky.auto import auto
 
-from weather_gov import RemoteWeather
-from openweatheraqi import RemoteAQI
-from bme import BME688Sensor
-from sgp30_sensor import SGP30Sensor
+
 
 BACKGROUND_IMAGE = "background_imgs/tree2.jpg"
 
@@ -79,36 +77,13 @@ class InkyDisplay:
         self.display.set_image(self.image)
         self.display.show()
 
-def fetch_all_data():
-    # --- Weather ---
-    weather_api = RemoteWeather(47.697, -122.3222)
-    daily = weather_api.get_daily_forecast()
-    hourly = weather_api.get_hourly_forecast()
-    current = weather_api.get_current_weather()
-    sunrise = weather_api.get_sunrise()
-    sunset = weather_api.get_sunset()
-    # --- AQI ---
-    # aqi_api = RemoteAQI(47.697, -122.3222, open('/private/keys/openweather.txt').read().strip())
-    # aqi_now = aqi_api.get_detailed_current_aqi()
-    # --- BME688 ---
-    bme = BME688Sensor().read_data()
-    # --- SGP30 ---
-    sgp30 = SGP30Sensor().read_data()
-    # --- Compose data dicts for rendering ---
-    weather = {
-        'current_temp': int(current['temperature']),
-        'current_desc': current['short_forecast'],
-        'daily': daily,
-        'hourly': hourly,
-        'sunrise': sunrise,
-        'sunset': sunset,
-    }
-    return weather, None, bme, sgp30
+
 
 def main():
     inky = InkyDisplay()
+    data = DataAggregator()
     while True:
-        weather, aqi, bme, sgp30 = fetch_all_data()
+        weather, aqi, bme, sgp30 = data.fetch_all_data()
         inky.render(weather, aqi, bme, sgp30)
         # Update every hour
         time.sleep(3600)

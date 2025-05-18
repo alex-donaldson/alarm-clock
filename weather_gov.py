@@ -108,7 +108,7 @@ class RemoteWeather:
         """
         current_conditions = self.get_raw_daily_forecast_data()["properties"]["periods"][0]
         return {
-            "temp": current_conditions["temperature"],
+            "temperature": current_conditions["temperature"],
             "wind_speed": current_conditions["windSpeed"],
             "short_forecast": current_conditions["shortForecast"],
             "temp_unit": current_conditions["temperatureUnit"],
@@ -151,11 +151,13 @@ def main():
     hourly_forecast = weather.get_hourly_forecast()
     for hour in hourly_forecast:
         print(f"Time: {hour['hour']}:00")
-        print(f"  Temp: {hour['temp']}°F")
+        print(f"  Temp: {hour['temperature']}°F")
         print(f"  Wind Speed: {hour['wind_speed']}")
         print(f"  Wind Direction: {hour['wind_direction']}")
         print(f"  Forecast: {hour['short_forecast']}")
         print()
+
+    
     # print("[7-Day Weather Forecast]")
     # for day in daily_forecast:
     #     print(f"Date: {day['date']}")
