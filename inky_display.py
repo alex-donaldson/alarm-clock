@@ -31,28 +31,33 @@ class InkyDisplay:
 
     def render(self, weather, aqi, bme, sgp30):
         self.clear()
-        # --- Current Weather (center, largest area) ---
+        # --- Center: Current Weather (smaller font) ---
         x_c, y_c = 350, 60
-        self.draw.text((x_c, y_c), f"{weather['current_temp']}°F", self.display.RED, font=self.font_large)
-        self.draw.text((x_c, y_c+80), f"{weather['current_desc']}", self.display.BLACK, font=self.font_med)
-        self.draw.text((x_c, y_c+130), f"Humidity: {bme['humidity']:.0f}%", self.display.BLACK, font=self.font_med)
-        self.draw.text((x_c, y_c+180), f"Pressure: {bme['pressure']:.0f} hPa", self.display.BLACK, font=self.font_med)
-        self.draw.text((x_c, y_c+230), f"eCO2: {sgp30['eCO2']} ppm", self.display.BLACK, font=self.font_med)
-        self.draw.text((x_c, y_c+270), f"TVOC: {sgp30['TVOC']} ppb", self.display.BLACK, font=self.font_med)
+        self.draw.text((x_c, y_c), f"{weather['current_temp']}°F", self.display.BLACK, font=self.font_large)
+        self.draw.text((x_c, y_c+60), f"{weather['current_desc']}", self.display.BLACK, font=self.font_med)
+
+        # --- Indoor Sensors Header ---
+        self.draw.text((x_c, y_c+110), "Indoor Sensors", self.display.BLACK, font=self.font_small)
+
+        # --- BME688 and SGP30 Data ---
+        bme_temp_f = (bme['temperature'] * 9 / 5) + 32
+        self.draw.text((x_c, y_c+140), f"Temp: {bme_temp_f:.1f}°F", self.display.BLACK, font=self.font_small)
+        self.draw.text((x_c, y_c+170), f"Humidity: {bme['humidity']:.0f}%", self.display.BLACK, font=self.font_small)
+        self.draw.text((x_c, y_c+200), f"Pressure: {bme['pressure']:.0f} hPa", self.display.BLACK, font=self.font_small)
+        self.draw.text((x_c, y_c+230), f"eCO2: {sgp30['eCO2']} ppm", self.display.BLACK, font=self.font_small)
+        self.draw.text((x_c, y_c+260), f"TVOC: {sgp30['TVOC']} ppb", self.display.BLACK, font=self.font_small)
         # Timestamp
         timestamp = datetime.now().strftime("Updated: %Y-%m-%d %H:%M")
-        self.draw.text((x_c, y_c+320), timestamp, self.display.BLACK, font=self.font_small)
-        # self.draw.text((x_c, y_c+360), f"AQI: {aqi['aqi']} ({aqi['category']})", self.display.RED, font=self.font_med)
+        self.draw.text((x_c, y_c+290), timestamp, self.display.BLACK, font=self.font_small)
 
         # --- Right: 6-day Forecast ---
-        x_r, y_r = 900, 40
+        x_r, y_r = 600, 40
         self.draw.text((x_r, y_r), "Next 6 Days", self.display.RED, font=self.font_med)
         y_r += 50
         for day in weather['daily'][1:7]:
             self.draw.text((x_r, y_r), f"{day['date']}", self.display.BLACK, font=self.font_small)
             self.draw.text((x_r+120, y_r), f"H:{day['high_temp']}° L:{day['low_temp']}°", self.display.RED, font=self.font_small)
             self.draw.text((x_r+320, y_r), f"Precip:{day.get('precip', '--')}%", self.display.BLACK, font=self.font_small)
-            # self.draw.text((x_r+480, y_r), f"AQI:{day.get('aqi', '--')}", self.display.RED, font=self.font_small)
             y_r += 45
 
         # --- Left: 24-hour Hourly Forecast ---
@@ -63,7 +68,6 @@ class InkyDisplay:
             self.draw.text((x_l, y_l), f"{hour['time']}", self.display.BLACK, font=self.font_small)
             self.draw.text((x_l+90, y_l), f"{hour['temp']}°", self.display.RED, font=self.font_small)
             self.draw.text((x_l+160, y_l), f"P:{hour.get('precip', '--')}%", self.display.BLACK, font=self.font_small)
-            # self.draw.text((x_l+240, y_l), f"AQI:{hour.get('aqi', '--')}", self.display.RED, font=self.font_small)
             y_l += 32
             if y_l > self.height - 100:
                 break  # Prevent overflow
