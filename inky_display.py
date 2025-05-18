@@ -44,19 +44,18 @@ class InkyDisplay:
         self.draw.text((x_c + 5, y_c+200), f"Pressure: {bme['pressure']:.0f} hPa", self.display.BLACK, font=self.font_small)
         self.draw.text((x_c + 5, y_c+230), f"eCO2: {sgp30['eCO2']} ppm", self.display.BLACK, font=self.font_small)
         self.draw.text((x_c + 5, y_c+260), f"TVOC: {sgp30['TVOC']} ppb", self.display.BLACK, font=self.font_small)
-        timestamp = datetime.now().strftime("Updated: %Y-%m-%d %H:%M")
-        self.draw.text((x_c, y_c+290), timestamp, self.display.BLACK, font=self.font_xsmall)
+        
 
         # --- Right: 6-day Forecast ---
-        x_r, y_r = 550, 40
+        x_r, y_r = 550, 20
         self.draw.text((x_r, y_r), "Daily", self.display.BLACK, font=self.font_med)
         y_r += 50
-        for day in weather['daily'][:15]:
+        for day in weather['daily'][:11]:
             day_label = day['name']
             self.draw.text((x_r, y_r), f"{day_label}", self.display.BLACK, font=self.font_small)
             self.draw.text((x_r+5, y_r + SMALL_FONT_SPACE), f"Temp:{day['temperature']}°", self.display.BLACK, font=self.font_small)
             self.draw.text((x_r+5, y_r + 2 * SMALL_FONT_SPACE), f"Precip:{day.get('percentageOfPrecipitation', '--')}%", self.display.BLACK, font=self.font_small)
-            y_r += 45
+            y_r += 90
 
         # --- Left: 12-hour Hourly Forecast (smaller font, fits vertically) ---
         x_l, y_l = 20, 40
@@ -73,7 +72,8 @@ class InkyDisplay:
         sunrise = weather.get('sunrise', '--:--')
         sunset = weather.get('sunset', '--:--')
         self.draw.text((self.width//2-250, self.height-50), f"Sunrise: {sunrise}   Sunset: {sunset}", self.display.BLACK, font=self.font_small)
-
+        timestamp = datetime.now().strftime("Updated: %Y-%m-%d %H:%M")
+        self.draw.text((self.width//2-250, self.height-20), timestamp, self.display.BLACK, font=self.font_xsmall)    
         self.display.set_image(self.image)
         self.display.show()
 
