@@ -71,14 +71,13 @@ class RemoteWeather:
         daily_forecast = []
 
         for period in periods:
-            if "day" in period["name"].lower():  # Filter for daytime periods
-                daily_forecast.append({
-                    "date": datetime.strptime(period["startTime"], WEATHER_TIME_FORMAT).strftime("%Y-%m-%d"),
-                    "high_temp": period["temperature"] if period["isDaytime"] else None,
-                    "low_temp": None if period["isDaytime"] else period["temperature"],
-                    "wind_speed": period["windSpeed"],
-                    "short_forecast": period["shortForecast"]
-                })
+            daily_forecast.append({
+                "name": period["name"],
+                "temperature": period["temperature"],
+                "percentageOfPrecipitation": period["probabilityOfPrecipitation"]["value"],
+                "wind_speed": period["windSpeed"],
+                "short_forecast": period["shortForecast"]
+            })
 
         return daily_forecast
 
@@ -86,7 +85,7 @@ class RemoteWeather:
         """
         Get the hourly weather forecast for the next 24 hours.
         """
-        raw_data = self.get_raw_daily_forecast_data()
+        raw_data = self.get_raw_hourly_forecast_data()
         periods = raw_data["properties"]["periods"]
         hourly_forecast = []
 

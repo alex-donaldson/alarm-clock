@@ -21,6 +21,8 @@ class InkyDisplay:
         # Adjust font paths/sizes as needed for your system
         self.font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 50)
         self.font_med = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 30)
+        self.font_med2 = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 25)
+    
         self.font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 20)
         self.font_xsmall = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 15)
 
@@ -33,7 +35,7 @@ class InkyDisplay:
         # --- Center: Current Weather (smaller font) ---
         x_c, y_c = 300, 60  # Move center block right
         self.draw.text((x_c, y_c), f"{weather['current_temp']}°F", self.display.BLACK, font=self.font_large)
-        self.draw.text((x_c, y_c+60), f"{weather['current_desc']}", self.display.BLACK, font=self.font_med)
+        self.draw.text((x_c, y_c+60), f"{weather['current_desc']}", self.display.BLACK, font=self.font_med2)
         self.draw.text((x_c, y_c+110), "Indoor Sensors", self.display.BLACK, font=self.font_small)
         bme_temp_f = (bme['temperature'] * 9 / 5) + 32
         self.draw.text((x_c + 2, y_c+140), f"Temp: {bme_temp_f:.1f}°F", self.display.BLACK, font=self.font_small)
@@ -45,17 +47,14 @@ class InkyDisplay:
         self.draw.text((x_c, y_c+290), timestamp, self.display.BLACK, font=self.font_xsmall)
 
         # --- Right: 6-day Forecast ---
-        x_r, y_r = 600, 40
-        self.draw.text((x_r, y_r), "Next 6 Days", self.display.BLACK, font=self.font_med)
+        x_r, y_r = 580, 40
+        self.draw.text((x_r, y_r), "Daily", self.display.BLACK, font=self.font_med)
         y_r += 50
-        for day in weather['daily'][1:7]:
-            try:
-                day_label = datetime.strptime(day['date'], "%Y-%m-%d").strftime("%a")
-            except Exception:
-                day_label = day['date']
+        for day in weather['daily'][:15]:
+            day_label = day['name']
             self.draw.text((x_r, y_r), f"{day_label}", self.display.BLACK, font=self.font_small)
-            self.draw.text((x_r+60, y_r), f"H:{day['high_temp']}° L:{day['low_temp']}°", self.display.BLACK, font=self.font_small)
-            self.draw.text((x_r+220, y_r), f"Precip:{day.get('precip', '--')}%", self.display.BLACK, font=self.font_small)
+            self.draw.text((x_r+60, y_r), f"Temp:{day['temperature']}°", self.display.BLACK, font=self.font_small)
+            self.draw.text((x_r+220, y_r), f"Precip:{day.get('percentageOfPrecipitation', '--')}%", self.display.BLACK, font=self.font_small)
             y_r += 45
 
         # --- Left: 12-hour Hourly Forecast (smaller font, fits vertically) ---
