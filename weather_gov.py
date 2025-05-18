@@ -2,7 +2,7 @@
 
 import urllib.request
 import json
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 # Constants
 DAILY_FORECAST_URL = "https://api.weather.gov/gridpoints/{gridId}/{gridX},{gridY}/forecast"
@@ -94,6 +94,30 @@ class RemoteWeather:
             "short_forecast": current_conditions["shortForecast"],
             "temp_unit": current_conditions["temperatureUnit"],
         }
+
+    def get_sunrise(self):
+        """
+        Get the local sunrise time for the current lat/lon.
+        """
+        url = f"https://api.sunrise-sunset.org/json?lat={self.lat}&lng={self.lon}&formatted=0"
+        response = urllib.request.urlopen(url)
+        data = json.loads(response.read().decode("utf8"))
+        sunrise_utc = datetime.fromisoformat(data["results"]["sunrise"]).replace(tzinfo=timezone.utc)
+        # Convert to local time (system local time)
+        local_sunrise = sunrise_utc.astimezone()
+        return local_sunrise.strftime("%I:%M %p")
+
+    def get_sunset(self):
+        """
+        Get the local sunset time for the current lat/lon.
+        """
+        url = f"https://api.sunrise-sunset.org/json?lat={self.lat}&lng={self.lon}&formatted=0"
+        response = urllib.request.urlopen(url)
+        data = json.loads(response.read().decode("utf8"))
+        sunset_utc = datetime.fromisoformat(data["results"]["sunset"]).replace(tzinfo=timezone.utc)
+        # Convert to local time (system local time)
+        local_sunset = sunset_utc.astimezone()
+        return local_sunset.strftime("%I:%M %p")
     
 def main():
     """

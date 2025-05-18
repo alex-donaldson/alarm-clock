@@ -32,50 +32,47 @@ class InkyDisplay:
     def render(self, weather, aqi, bme, sgp30):
         self.clear()
         # --- Center: Current Weather (smaller font) ---
-        x_c, y_c = 350, 60
+        x_c, y_c = 320, 60  # Move center block right
         self.draw.text((x_c, y_c), f"{weather['current_temp']}°F", self.display.BLACK, font=self.font_large)
         self.draw.text((x_c, y_c+60), f"{weather['current_desc']}", self.display.BLACK, font=self.font_med)
-
-        # --- Indoor Sensors Header ---
         self.draw.text((x_c, y_c+110), "Indoor Sensors", self.display.BLACK, font=self.font_small)
-
-        # --- BME688 and SGP30 Data ---
         bme_temp_f = (bme['temperature'] * 9 / 5) + 32
         self.draw.text((x_c, y_c+140), f"Temp: {bme_temp_f:.1f}°F", self.display.BLACK, font=self.font_small)
         self.draw.text((x_c, y_c+170), f"Humidity: {bme['humidity']:.0f}%", self.display.BLACK, font=self.font_small)
         self.draw.text((x_c, y_c+200), f"Pressure: {bme['pressure']:.0f} hPa", self.display.BLACK, font=self.font_small)
         self.draw.text((x_c, y_c+230), f"eCO2: {sgp30['eCO2']} ppm", self.display.BLACK, font=self.font_small)
         self.draw.text((x_c, y_c+260), f"TVOC: {sgp30['TVOC']} ppb", self.display.BLACK, font=self.font_small)
-        # Timestamp
         timestamp = datetime.now().strftime("Updated: %Y-%m-%d %H:%M")
         self.draw.text((x_c, y_c+290), timestamp, self.display.BLACK, font=self.font_small)
 
         # --- Right: 6-day Forecast ---
         x_r, y_r = 600, 40
-        self.draw.text((x_r, y_r), "Next 6 Days", self.display.RED, font=self.font_med)
+        self.draw.text((x_r, y_r), "Next 6 Days", self.display.BLACK, font=self.font_med)
         y_r += 50
         for day in weather['daily'][1:7]:
-            self.draw.text((x_r, y_r), f"{day['date']}", self.display.BLACK, font=self.font_small)
-            self.draw.text((x_r+120, y_r), f"H:{day['high_temp']}° L:{day['low_temp']}°", self.display.RED, font=self.font_small)
-            self.draw.text((x_r+320, y_r), f"Precip:{day.get('precip', '--')}%", self.display.BLACK, font=self.font_small)
+            try:
+                day_label = datetime.strptime(day['date'], "%Y-%m-%d").strftime("%a")
+            except Exception:
+                day_label = day['date']
+            self.draw.text((x_r, y_r), f"{day_label}", self.display.BLACK, font=self.font_small)
+            self.draw.text((x_r+60, y_r), f"H:{day['high_temp']}° L:{day['low_temp']}°", self.display.BLACK, font=self.font_small)
+            self.draw.text((x_r+220, y_r), f"Precip:{day.get('precip', '--')}%", self.display.BLACK, font=self.font_small)
             y_r += 45
 
-        # --- Left: 24-hour Hourly Forecast ---
+        # --- Left: 12-hour Hourly Forecast (smaller font, fits vertically) ---
         x_l, y_l = 20, 40
-        self.draw.text((x_l, y_l), "Next 24 Hours", self.display.RED, font=self.font_med)
-        y_l += 50
-        for hour in weather['hourly'][:24]:
+        self.draw.text((x_l, y_l), "Next 12 Hours", self.display.BLACK, font=self.font_small)
+        y_l += 28
+        for hour in weather['hourly'][:12]:
             self.draw.text((x_l, y_l), f"{hour['time']}", self.display.BLACK, font=self.font_small)
-            self.draw.text((x_l+90, y_l), f"{hour['temp']}°", self.display.RED, font=self.font_small)
-            self.draw.text((x_l+160, y_l), f"P:{hour.get('precip', '--')}%", self.display.BLACK, font=self.font_small)
-            y_l += 32
-            if y_l > self.height - 100:
-                break  # Prevent overflow
+            self.draw.text((x_l+70, y_l), f"{hour['temp']}°", self.display.BLACK, font=self.font_small)
+            self.draw.text((x_l+130, y_l), f"P:{hour.get('precip', '--')}%", self.display.BLACK, font=self.font_small)
+            y_l += 28
 
         # --- Bottom: Sunrise/Sunset ---
         sunrise = weather.get('sunrise', '--:--')
         sunset = weather.get('sunset', '--:--')
-        self.draw.text((self.width//2-200, self.height-60), f"Sunrise: {sunrise}   Sunset: {sunset}", self.display.YELLOW, font=self.font_med)
+        self.draw.text((self.width//2-200, self.height-60), f"Sunrise: {sunrise}   Sunset: {sunset}", self.display.BLACK, font=self.font_med)
 
         self.display.set_image(self.image)
         self.display.show()
@@ -86,8 +83,8 @@ def fetch_all_data():
     daily = weather_api.get_daily_forecast()
     hourly = weather_api.get_hourly_forecast()
     current = weather_api.get_current_weather()
-    sunrise = current.get('sunrise', '--:--')
-    sunset = current.get('sunset', '--:--')
+    sunrise = weather_api.get_sunrise()
+    sunset = weather_api.get_sunset()
     # --- AQI ---
     # aqi_api = RemoteAQI(47.697, -122.3222, open('/private/keys/openweather.txt').read().strip())
     # aqi_now = aqi_api.get_detailed_current_aqi()
