@@ -39,7 +39,7 @@ class InkyDisplay:
         self.draw.text((x_c, y_c+180), f"Pressure: {bme['pressure']:.0f} hPa", self.display.BLACK, font=self.font_med)
         self.draw.text((x_c, y_c+230), f"eCO2: {sgp30['eCO2']} ppm", self.display.BLACK, font=self.font_med)
         self.draw.text((x_c, y_c+270), f"TVOC: {sgp30['TVOC']} ppb", self.display.BLACK, font=self.font_med)
-        self.draw.text((x_c, y_c+320), f"AQI: {aqi['aqi']} ({aqi['category']})", self.display.RED, font=self.font_med)
+        # self.draw.text((x_c, y_c+320), f"AQI: {aqi['aqi']} ({aqi['category']})", self.display.RED, font=self.font_med)
 
         # --- Right: 6-day Forecast ---
         x_r, y_r = 900, 40
@@ -49,7 +49,7 @@ class InkyDisplay:
             self.draw.text((x_r, y_r), f"{day['date']}", self.display.BLACK, font=self.font_small)
             self.draw.text((x_r+120, y_r), f"H:{day['high_temp']}° L:{day['low_temp']}°", self.display.RED, font=self.font_small)
             self.draw.text((x_r+320, y_r), f"Precip:{day.get('precip', '--')}%", self.display.BLACK, font=self.font_small)
-            self.draw.text((x_r+480, y_r), f"AQI:{day.get('aqi', '--')}", self.display.RED, font=self.font_small)
+            # self.draw.text((x_r+480, y_r), f"AQI:{day.get('aqi', '--')}", self.display.RED, font=self.font_small)
             y_r += 45
 
         # --- Left: 24-hour Hourly Forecast ---
@@ -60,7 +60,7 @@ class InkyDisplay:
             self.draw.text((x_l, y_l), f"{hour['time']}", self.display.BLACK, font=self.font_small)
             self.draw.text((x_l+90, y_l), f"{hour['temp']}°", self.display.RED, font=self.font_small)
             self.draw.text((x_l+160, y_l), f"P:{hour.get('precip', '--')}%", self.display.BLACK, font=self.font_small)
-            self.draw.text((x_l+240, y_l), f"AQI:{hour.get('aqi', '--')}", self.display.RED, font=self.font_small)
+            # self.draw.text((x_l+240, y_l), f"AQI:{hour.get('aqi', '--')}", self.display.RED, font=self.font_small)
             y_l += 32
             if y_l > self.height - 100:
                 break  # Prevent overflow
@@ -82,8 +82,8 @@ def fetch_all_data():
     sunrise = current.get('sunrise', '--:--')
     sunset = current.get('sunset', '--:--')
     # --- AQI ---
-    aqi_api = RemoteAQI(47.697, -122.3222, open('/private/keys/openweather.txt').read().strip())
-    aqi_now = aqi_api.get_detailed_current_aqi()
+    # aqi_api = RemoteAQI(47.697, -122.3222, open('/private/keys/openweather.txt').read().strip())
+    # aqi_now = aqi_api.get_detailed_current_aqi()
     # --- BME688 ---
     bme = BME688Sensor().read_data()
     # --- SGP30 ---
@@ -97,7 +97,7 @@ def fetch_all_data():
         'sunrise': sunrise,
         'sunset': sunset,
     }
-    return weather, aqi_now, bme, sgp30
+    return weather, None, bme, sgp30
 
 def main():
     inky = InkyDisplay()
