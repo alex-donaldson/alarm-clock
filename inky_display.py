@@ -3,7 +3,7 @@ from datetime import datetime
 from PIL import Image, ImageFont, ImageDraw
 from inky.auto import auto
 
-from weather import RemoteWeather
+from weather_gov import RemoteWeather
 from openweatheraqi import RemoteAQI
 from bme import BME688Sensor
 from sgp30_sensor import SGP30Sensor
