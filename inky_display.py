@@ -50,10 +50,10 @@ class InkyDisplay:
         x_r, y_r = 550, 20
         self.draw.text((x_r, y_r), "Daily", self.display.BLACK, font=self.font_med)
         y_r += 50
-        for day in weather['daily'][:11]:
+        for day in weather['daily'][:4]:
             day_label = day['name']
             self.draw.text((x_r, y_r), f"{day_label}", self.display.BLACK, font=self.font_small)
-            self.draw.text((x_r+5, y_r + SMALL_FONT_SPACE), f"Temp:{day['temperature']}°", self.display.BLACK, font=self.font_small)
+            self.draw.text((x_r+5, y_r + SMALL_FONT_SPACE), f"{day['low_temp']} / {day['high_temp']}°", self.display.BLACK, font=self.font_small)
             self.draw.text((x_r+5, y_r + 2 * SMALL_FONT_SPACE), f"Precip:{day.get('percentageOfPrecipitation', '--')}%", self.display.BLACK, font=self.font_small)
             y_r += 90
 

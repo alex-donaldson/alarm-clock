@@ -62,7 +62,7 @@ class RemoteWeather:
         return self.get_raw_forecast_data(hourly_forecast_url)
     
 
-    def get_daily_forecast(self):
+    def get_daily_forecast_old(self):
         """
         Get the daily weather forecast for the next 7 days.
         """
@@ -78,6 +78,49 @@ class RemoteWeather:
                 "wind_speed": period["windSpeed"],
                 "short_forecast": period["shortForecast"]
             })
+
+        return daily_forecast
+    
+    def get_daily_forecast(self):
+        """
+        Get the daily weather forecast for the next 7 days.
+        """
+        raw_data = self.get_raw_daily_forecast_data()
+        periods = raw_data["properties"]["periods"]
+        daily_forecast = []
+        current_day = None
+        low = None
+        high = None
+        max_precip = None
+
+        for period in periods:
+            print(period)
+            if period["name"] == "Tonight" or "name" == "Today":
+                continue
+            elif current_day is None or current_day != period["name"][:3]:
+                if current_day is not None:
+                    daily_forecast.append({
+                    "name": current_day,
+                    "high_temp": high,
+                    "low_temp": low,
+                    "percentageOfPrecipitation": max_precip
+                })
+                current_day = period["name"][:3]
+                max_precip = period["probabilityOfPrecipitation"].get("value", 0) or 0
+                print("max_precip:", max_precip)
+                if "Night" in period["name"]:
+                    low = period["temperature"]
+                else:
+                    high = period["temperature"]
+            else:
+                if "Night" in period["name"]:
+                    low = period["temperature"]
+                else:
+                    high = period["temperature"]
+                print("current_day:", current_day)
+                print("max_precip:", max_precip)
+                precip = period["probabilityOfPrecipitation"].get("value", 0) or 0
+                max_precip = max(max_precip, precip)
 
         return daily_forecast
 
@@ -144,27 +187,27 @@ def main():
     lat, lon = 47.697, -122.3222  # Example coordinates
     weather = RemoteWeather(lat, lon)
     daily_forecast = weather.get_daily_forecast()
-    print(weather.get_current_weather())
+    # print(weather.get_current_weather())
 
-    print("\nHourly Forecast:")
-    hourly_forecast = weather.get_hourly_forecast()
-    for hour in hourly_forecast:
-        print(f"Time: {hour['hour']}:00")
-        print(f"  Temp: {hour['temperature']}°F")
-        print(f"  Wind Speed: {hour['wind_speed']}")
-        print(f"  Wind Direction: {hour['wind_direction']}")
-        print(f"  Forecast: {hour['short_forecast']}")
-        print()
+    # print("\nHourly Forecast:")
+    # hourly_forecast = weather.get_hourly_forecast()
+    # for hour in hourly_forecast:
+    #     print(f"Time: {hour['hour']}:00")
+    #     print(f"  Temp: {hour['temperature']}°F")
+    #     print(f"  Wind Speed: {hour['wind_speed']}")
+    #     print(f"  Wind Direction: {hour['wind_direction']}")
+    #     print(f"  Forecast: {hour['short_forecast']}")
+    #     print()
 
     
-    # print("[7-Day Weather Forecast]")
-    # for day in daily_forecast:
-    #     print(f"Date: {day['date']}")
-    #     print(f"  High Temp: {day['high_temp']}°F")
-    #     print(f"  Low Temp: {day['low_temp']}°F")
-    #     print(f"  Wind Speed: {day['wind_speed']}")
-    #     print(f"  Forecast: {day['short_forecast']}")
-    #     print()
+    print("[7-Day Weather Forecast]")
+    print("daily forecast data:", daily_forecast)
+    for day in daily_forecast:
+        print(f"Date: {day['name']}")
+        print(f"  High Temp: {day['high_temp']}°F")
+        print(f"  Low Temp: {day['low_temp']}°F")
+        print(f"  Precipitation: {day['percentageOfPrecipitation']}%")
+        print()
 
 if __name__ == "__main__":
     main()
