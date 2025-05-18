@@ -32,14 +32,6 @@ class SGP30Sensor:
             "TVOC": self.sensor.TVOC   # Total Volatile Organic Compounds in ppb
         }
 
-    def set_baseline(self, eCO2_baseline, TVOC_baseline):
-        """
-        Set the baseline values for the sensor.
-        :param eCO2_baseline: Baseline value for eCO2.
-        :param TVOC_baseline: Baseline value for TVOC.
-        """
-        self.sensor.set_iaq_baseline(eCO2_baseline, TVOC_baseline)
-
     def get_baseline(self):
         """
         Get the current baseline values from the sensor.

@@ -91,7 +91,7 @@ def fetch_all_data():
     # --- Compose data dicts for rendering ---
     weather = {
         'current_temp': int(current['temperature']),
-        'current_desc': current['weather'],
+        'current_desc': current['short_forecast'],
         'daily': daily,
         'hourly': hourly,
         'sunrise': sunrise,
