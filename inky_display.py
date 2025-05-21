@@ -89,7 +89,7 @@ def main():
         weather, aqi, bme, sgp30 = data.fetch_all_data()
         inky.render(weather, aqi, bme, sgp30)
         # Update every hour
-        time.sleep(3600)
+        time.sleep(SLEEP_TIME)
 
 if __name__ == "__main__":
     main()
