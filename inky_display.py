@@ -8,6 +8,7 @@ from inky.auto import auto
 
 BACKGROUND_IMAGE = "background_imgs/tree2.jpg"
 SMALL_FONT_SPACE = 30
+SLEEP_TIME = 900
 
 class InkyDisplay:
     def __init__(self):
@@ -17,7 +18,8 @@ class InkyDisplay:
         self.height = self.display.HEIGHT
         # Load background image and convert to palette
         self.background = Image.open(BACKGROUND_IMAGE).resize((self.width, self.height)).convert("P")
-        self.image = self.background.copy()
+        # self.image = self.background.copy()
+        self.image = Image.new("P", (self.display.width, self.display.height))
         self.draw = ImageDraw.Draw(self.image)
         # Adjust font paths/sizes as needed for your system
         self.font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 50)
@@ -28,6 +30,7 @@ class InkyDisplay:
         self.font_xsmall = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 18)
 
     def clear(self):
+        pass
         self.image = self.background.copy()
         self.draw = ImageDraw.Draw(self.image)
 
