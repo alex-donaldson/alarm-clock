@@ -49,7 +49,7 @@ class RemoteAQI:
         """
         today = datetime.today().date()
         if not self.forecast_date or today > self.forecast_date:
-            print('Fetching new AQI forecast data...')
+            # print('Fetching new AQI forecast data...')
             forecasts = {}
             for p in self.get_raw_forecast_data():
                 date = self.get_date(p['DateForecast'])

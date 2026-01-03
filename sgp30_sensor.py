@@ -19,8 +19,8 @@ class SGP30Sensor:
 
         # Initialize the sensor
         self.sensor.iaq_init()
-        print("SGP30 sensor initialized.")
-        print(f"Serial Number: {self.sensor.serial}")
+        # print("SGP30 sensor initialized.")
+        # print(f"Serial Number: {self.sensor.serial}")
 
     def read_data(self):
         """

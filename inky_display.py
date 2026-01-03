@@ -3,6 +3,10 @@ from datetime import datetime
 from PIL import Image, ImageFont, ImageDraw
 from data_agg import DataAggregator
 from inky.auto import auto
+from log_config import get_logger
+
+# Configure module logger (file-backed)
+logger = get_logger('inky_display', 'inky.log')
 
 
 
@@ -12,6 +16,7 @@ SLEEP_TIME = 900
 
 class InkyDisplay:
     def __init__(self):
+        logger.info("Initializing InkyDisplay...")
         self.display = auto()
         self.display.set_border(self.display.WHITE)
         self.width = self.display.WIDTH
@@ -31,10 +36,12 @@ class InkyDisplay:
 
     def clear(self):
         pass
+        # reset to background for fresh render
         self.image = self.background.copy()
         self.draw = ImageDraw.Draw(self.image)
 
     def render(self, weather, aqi, bme, sgp30):
+        logger.info("Starting render")
         self.clear()
         # --- Center: Current Weather (smaller font) ---
         x_c, y_c = 280, 60
@@ -64,7 +71,7 @@ class InkyDisplay:
         x_l, y_l = 20, 40
         self.draw.text((x_l, y_l), "Next 12 Hours", self.display.BLACK, font=self.font_med2)
         y_l += 28
-        print("Hourly forecast data:", weather['hourly'])
+        logger.debug("Hourly forecast data: %s", weather.get('hourly'))
         for hour in weather['hourly'][:12]:
             self.draw.text((x_l, y_l), f"{hour['hour']}:00", self.display.BLACK, font=self.font_small)
             self.draw.text((x_l+70, y_l), f"{hour['temperature']}°", self.display.BLACK, font=self.font_small)
@@ -79,15 +86,21 @@ class InkyDisplay:
         self.draw.text((self.width//2-250, self.height-20), timestamp, self.display.BLACK, font=self.font_xsmall)    
         self.display.set_image(self.image)
         self.display.show()
+        logger.info("Render complete - displayed image updated")
 
 
 
 def main():
+    logger.info("Starting main loop")
     inky = InkyDisplay()
     data = DataAggregator()
     while True:
-        weather, aqi, bme, sgp30 = data.fetch_all_data()
-        inky.render(weather, aqi, bme, sgp30)
+        try:
+            weather, aqi, bme, sgp30 = data.fetch_all_data()
+            logger.info("Fetched data: daily=%d hourly=%d", len(weather.get('daily', [])), len(weather.get('hourly', [])))
+            inky.render(weather, aqi, bme, sgp30)
+        except Exception as e:
+            logger.exception("Error during fetch/render loop: %s", e)
         # Update every hour
         time.sleep(SLEEP_TIME)
 

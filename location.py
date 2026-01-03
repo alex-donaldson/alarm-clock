@@ -22,14 +22,14 @@ class Location:
         try:
             ip = self.get_ip()
             data = self.get_ip_data(ip)
-            print("IP Data:", data)
+            # print("IP Data:", data)
             if self.validate_data(data):
                 self.data = data
             else:
-                print("Data was invalid, using default location.")
+                # print("Data was invalid, using default location.")
                 self.data = DEFAULT_DATA
         except Exception as e:
-            print(f"Lookup failed ({e}), using default location.")
+            # print(f"Lookup failed ({e}), using default location.")
             self.data = DEFAULT_DATA
 
     def get_ip(self):
@@ -84,7 +84,7 @@ class Location:
             return False
         for field in REQUIRED_FIELDS:
             if ip_data.get(field) is None:
-                print(f"Field '{field}' is missing.")
+                # print(f"Field '{field}' is missing.")
                 return False
         return True
 

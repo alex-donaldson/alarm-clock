@@ -16,7 +16,7 @@ class DataAggregator:
         daily = weather_api.get_daily_forecast()
         hourly = weather_api.get_hourly_forecast()
         current = weather_api.get_current_weather()
-        print("Current Weather:", current)
+        # print("Current Weather:", current)
         sunrise = weather_api.get_sunrise()
         sunset = weather_api.get_sunset()
         # --- AQI ---
