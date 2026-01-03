@@ -2,6 +2,9 @@ import time
 import board
 import busio
 from adafruit_bme680 import Adafruit_BME680_I2C
+from log_config import get_logger
+
+logger = get_logger('bme', 'bme.log')
 
 class BME688Sensor:
     """
@@ -15,42 +18,91 @@ class BME688Sensor:
         :param sea_level_pressure: Sea level pressure in hPa for altitude calculations.
         """
         if i2c is None:
-            i2c = busio.I2C(board.SCL, board.SDA)
-        self.sensor = Adafruit_BME680_I2C(i2c, address=0x77)
+            try:
+                i2c = busio.I2C(board.SCL, board.SDA)
+            except Exception as e:
+                logger.exception("Failed to initialize I2C: %s", e)
+                raise
+
+        # Try common I2C addresses for BME sensors
+        addresses = [None, 0x77, 0x76]
+        self.sensor = None
+        for addr in addresses:
+            try:
+                if addr is None:
+                    logger.debug("Attempting to create BME sensor without explicit address")
+                    self.sensor = Adafruit_BME680_I2C(i2c)
+                else:
+                    logger.debug("Attempting to create BME sensor with address 0x%02X", addr)
+                    self.sensor = Adafruit_BME680_I2C(i2c, address=addr)
+                # If creation succeeded, break
+                logger.info("BME sensor initialized (address=%s)", hex(addr) if addr else 'auto')
+                break
+            except Exception as e:
+                logger.debug("Could not initialize sensor at %s: %s", hex(addr) if addr else 'auto', e)
+                self.sensor = None
+                continue
+
+        if self.sensor is None:
+            logger.error("Failed to initialize BME sensor on any known address")
+            raise RuntimeError("BME sensor not found on I2C bus")
+
         self.sensor.sea_level_pressure = sea_level_pressure
 
     def read_data(self):
         """
         Read data from the BME688 sensor.
-        :return: A dictionary containing temperature, humidity, pressure, and gas resistance.
+        Returns both Celsius and Fahrenheit for temperature to remain backward-compatible:
+        - "temperature" (Celsius)
+        - "temperature_f" (Fahrenheit)
         """
-        return {
-            "temperature": self.sensor.temperature,  # Celsius
-            "humidity": self.sensor.humidity,        # Percentage
-            "pressure": self.sensor.pressure,        # hPa
-            "gas_resistance": self.sensor.gas,        # Ohms
-            "relative_humidity": self.sensor.relative_humidity,  # Percentage
-            "altitude": self.sensor.altitude,        # Meters
-        }
+        try:
+            temp_c = self.sensor.temperature
+            temp_f = (temp_c * 9 / 5) + 32 if temp_c is not None else None
+            data = {
+                "temperature": temp_c,
+                "temperature_f": temp_f,
+                "humidity": getattr(self.sensor, 'humidity', None),
+                "pressure": getattr(self.sensor, 'pressure', None),
+                "gas_resistance": getattr(self.sensor, 'gas', None),
+                "relative_humidity": getattr(self.sensor, 'relative_humidity', None),
+                "altitude": getattr(self.sensor, 'altitude', None),
+            }
+            logger.debug("Read BME data: %s", data)
+            return data
+        except Exception as e:
+            logger.exception("Error reading BME sensor data: %s", e)
+            return {
+                "temperature": None,
+                "temperature_f": None,
+                "humidity": None,
+                "pressure": None,
+                "gas_resistance": None,
+                "relative_humidity": None,
+                "altitude": None,
+            }
 
 def main():
     """
     Main function to test the BME688 sensor.
     """
-    print("Initializing BME688 sensor...")
+    logger.info("Initializing BME688 sensor...")
     bme688 = BME688Sensor()
 
     while True:
         data = bme688.read_data()
-        print(f"Temperature C: {data['temperature']:.2f} °C")
-        temperature_f = (data['temperature'] * 9 / 5) + 32
-        print(f"Temperature F: {temperature_f:.2f} °F")
-        print(f"Humidity: {data['humidity']:.2f} %")
-        print(f"Pressure: {data['pressure']:.2f} hPa")
-        print(f"Gas Resistance: {data['gas_resistance']:.2f} Ohms")
-        print(f"Relative Humidity: {data['relative_humidity']:.2f} %")
-        print(f"Altitude: {data['altitude']:.2f} m")
-        print()
+        # Use safe formatting if values are None
+        def fmt(v, fmt_str="{:.2f}"):
+            return fmt_str.format(v) if v is not None else "N/A"
+
+        logger.info("Temperature C: %s °C", fmt(data['temperature']))
+        logger.info("Temperature F: %s °F", fmt(data['temperature_f']))
+        logger.info("Humidity: %s %", fmt(data['humidity']))
+        logger.info("Pressure: %s hPa", fmt(data['pressure']))
+        logger.info("Gas Resistance: %s Ohms", fmt(data['gas_resistance']))
+        logger.info("Relative Humidity: %s %", fmt(data['relative_humidity']))
+        logger.info("Altitude: %s m", fmt(data['altitude']))
+        logger.info("")
         time.sleep(2)  # Wait for 2 seconds before reading again
 
 if __name__ == "__main__":
