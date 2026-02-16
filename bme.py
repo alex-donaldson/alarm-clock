@@ -2,9 +2,9 @@ import time
 import board
 import busio
 from adafruit_bme680 import Adafruit_BME680_I2C
-from log_config import get_logger
+# from log_config import get_logger
 
-logger = get_logger('bme', 'bme.log')
+# logger = get_logger('bme', 'bme.log')
 
 class BME688Sensor:
     """
@@ -21,7 +21,7 @@ class BME688Sensor:
             try:
                 i2c = busio.I2C(board.SCL, board.SDA)
             except Exception as e:
-                logger.exception("Failed to initialize I2C: %s", e)
+                # logger.exception("Failed to initialize I2C: %s", e)
                 raise
 
         # Try common I2C addresses for BME sensors
@@ -30,21 +30,21 @@ class BME688Sensor:
         for addr in addresses:
             try:
                 if addr is None:
-                    logger.debug("Attempting to create BME sensor without explicit address")
+                    # logger.debug("Attempting to create BME sensor without explicit address")
                     self.sensor = Adafruit_BME680_I2C(i2c)
                 else:
-                    logger.debug("Attempting to create BME sensor with address 0x%02X", addr)
+                    # logger.debug("Attempting to create BME sensor with address 0x%02X", addr)
                     self.sensor = Adafruit_BME680_I2C(i2c, address=addr)
                 # If creation succeeded, break
-                logger.info("BME sensor initialized (address=%s)", hex(addr) if addr else 'auto')
+                # logger.info("BME sensor initialized (address=%s)", hex(addr) if addr else 'auto')
                 break
             except Exception as e:
-                logger.debug("Could not initialize sensor at %s: %s", hex(addr) if addr else 'auto', e)
+                # logger.debug("Could not initialize sensor at %s: %s", hex(addr) if addr else 'auto', e)
                 self.sensor = None
                 continue
 
         if self.sensor is None:
-            logger.error("Failed to initialize BME sensor on any known address")
+            # logger.error("Failed to initialize BME sensor on any known address")
             raise RuntimeError("BME sensor not found on I2C bus")
 
         self.sensor.sea_level_pressure = sea_level_pressure
@@ -68,10 +68,10 @@ class BME688Sensor:
                 "relative_humidity": getattr(self.sensor, 'relative_humidity', None),
                 "altitude": getattr(self.sensor, 'altitude', None),
             }
-            logger.debug("Read BME data: %s", data)
+            # logger.debug("Read BME data: %s", data)
             return data
         except Exception as e:
-            logger.exception("Error reading BME sensor data: %s", e)
+            # logger.exception("Error reading BME sensor data: %s", e)
             return {
                 "temperature": None,
                 "temperature_f": None,
@@ -86,7 +86,7 @@ def main():
     """
     Main function to test the BME688 sensor.
     """
-    logger.info("Initializing BME688 sensor...")
+    print("Initializing BME688 sensor...")
     bme688 = BME688Sensor()
 
     while True:
@@ -95,14 +95,14 @@ def main():
         def fmt(v, fmt_str="{:.2f}"):
             return fmt_str.format(v) if v is not None else "N/A"
 
-        logger.info("Temperature C: %s °C", fmt(data['temperature']))
-        logger.info("Temperature F: %s °F", fmt(data['temperature_f']))
-        logger.info("Humidity: %s %", fmt(data['humidity']))
-        logger.info("Pressure: %s hPa", fmt(data['pressure']))
-        logger.info("Gas Resistance: %s Ohms", fmt(data['gas_resistance']))
-        logger.info("Relative Humidity: %s %", fmt(data['relative_humidity']))
-        logger.info("Altitude: %s m", fmt(data['altitude']))
-        logger.info("")
+        print("Temperature C: %s °C", fmt(data['temperature']))
+        print("Temperature F: %s °F", fmt(data['temperature_f']))
+        print("Humidity: %s %", fmt(data['humidity']))
+        print("Pressure: %s hPa", fmt(data['pressure']))
+        print("Gas Resistance: %s Ohms", fmt(data['gas_resistance']))
+        print("Relative Humidity: %s %", fmt(data['relative_humidity']))
+        print("Altitude: %s m", fmt(data['altitude']))
+        print("")
         time.sleep(2)  # Wait for 2 seconds before reading again
 
 if __name__ == "__main__":
