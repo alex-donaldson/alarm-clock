@@ -8,6 +8,8 @@
 #include "Adafruit_ThinkInk.h"
 #include <Adafruit_Sensor.h>
 #include "Adafruit_BME680.h"
+#include <Adafruit_AW9523.h>
+#include "Button.h"
 
 #define SRAM_CS 6
 #define EPD_CS 9
@@ -53,6 +55,8 @@ Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 Adafruit_seesaw ss;
 seesaw_NeoPixel sspixel = seesaw_NeoPixel(1, SS_NEOPIX, NEO_GRB + NEO_KHZ800);
 
+Adafruit_AW9523 aw;
+
 bool alarmOn = false;
 bool inAlarm = false;
 uint8_t alarmHour = 0;
@@ -77,22 +81,37 @@ int prevDate = 0;
 int prevMMHG = 0;
 int pressureTrend = 0;
 
-bool prevAlarmButtonState = false;
-bool prevTimeButtonState = false;
-unsigned long previousButtonMillis = 0; // Stores the last time the event occurred
-const long holdInterval = 1000;  // one
+int glowStart = 0;
+int glowDuration = 20000;  // light stays on for 20 seconds
+bool isGlowing = false;
+
+// Button pins (adjust to your wiring)
+const uint8_t alarmPin = 2;
+const uint8_t timePin = 3;
+const uint8_t snoozePin = 5;
+const uint8_t glowPin = 1;
+
+// Button helpers (active-low wiring assumed)
+Button alarmButton(alarmPin, true, 1000);
+Button timeButton(timePin, true, 1000);
+Button snoozeButton(snoozePin, true, 1000);
 
 void setup() {
   Serial.begin(115200);
+  initGlow();
+  glowOff();
   while (!Serial) delay(10);
   initRTC();
   initSeesaw();
   initOled();
   initEink();
   initBME();
+  // initialize buttons
+  alarmButton.begin();
+  timeButton.begin();
+  snoozeButton.begin();
   prevTimeMin = rtc.now().minute();
   prevDate = rtc.now().day();
-
   drawEink();
 }
 //
@@ -103,6 +122,7 @@ void loop() {
   handleTimeButton();
   handleSnoozeButton();
   handleAdjusting();
+  handleGlow();
   uint8_t currMin = rtc.now().minute();
   if (currMin != prevTimeMin) {
     drawEink();
@@ -154,14 +174,7 @@ void drawEink() {
     trend = "worse";
   }
   eink.print(" -- " + trend);
-
-  // Serial.print("Gas = ");
-  // Serial.print(bme.gas_resistance / 1000.0);
-  // Serial.println(" KOhms");
-
-  // Serial.print("Approx. Altitude = ");
-  // Serial.print(bme.readAltitude(SEALEVELPRESSURE_HPA));
-  // Serial.println(" m");
+  Serial.println("printing to eink");
 
   eink.display();
   delay(200);
@@ -201,83 +214,69 @@ bool wasEncoderButtonPressed() {
   return wasPressed;
 }
 
-bool isButtonHold(bool currButtonState) {
-  bool isHold = false;
-  if (currButtonState) {
-    //Check if we've exceeded hold interval, perform hold action
-    if (millis() - previousButtonMillis >= pressInterval) {
-      Serial.println("that is a hold!");
-      isHold = true;
-    }
-  }
-  return isHold;
-}
+// Poll hardware buttons and encoder; must be called frequently from loop()
+void handleButtonPress() {
+  // update button state machines
+  alarmButton.update();
+  timeButton.update();
+  snoozeButton.update();
 
-bool wasButtonPress(bool prevButtonState, bool currButtonState) {
-  bool out = false;
-  if (prevButtonState != currButtonState && !currButtonState) {
-    //we only care if the state changed and button is not currently pressed
-    Serial.println("button released!"); 
-    if (millis() - previousButtonMillis < holdInterval) {
-      Serial.println("that was a press!");
-      out = true;
-    }
-  }
-  return out;
+  // encoder button handling is performed in handleEncoderButtonPress()
+  handleEncoderButtonPress();
 }
 
 void setupAdjusting() {
-    Serial.println("Adjusting Hours");
-    adjustingHour = true;
-    DateTime now = rtc.now();
-    prevAdjustHour = now.hour();
-    prevAdjustMin = now.minute();
-    isAdjust = true;
-    screenOn();
-    printTimeOled(prevAdjustHour, prevAdjustMin);
+  Serial.println("Adjusting Hours");
+  adjustingHour = true;
+  DateTime now = rtc.now();
+  prevAdjustHour = now.hour();
+  prevAdjustMin = now.minute();
+  isAdjusting = true;
+  screenOn();
+  printTimeOled(prevAdjustHour, prevAdjustMin);
 }
 
 void handleAlarmButton() {
-  bool currButtonState = !digitalRead(alarmPin);
-  if (isAlarmButtonHold()) {
+  // alarmButton state machine handles debouncing and hold detection
+  if (alarmButton.wasHeld()) {
     if (!adjustingHour && !adjustingMin) {
       setupAdjusting();
       adjustingAlarm = true;
     }
-  } else if (wasButtonPress(prevAlarmButtonState, currButtonState)) {
+  } else if (alarmButton.wasPressed()) {
     // toggle alarm
     alarmOn = !alarmOn;
   }
 }
 
 void handleTimeButton() {
-  bool currButtonState = !digitalRead(timePin);
-  if (isButtonHold(currButtonState)) {
+  if (timeButton.wasHeld()) {
     if (!adjustingHour && !adjustingMin) {
       setupAdjusting();
       adjustingTime = true;
     }
-  } else if (wasButtonPress(prevAlarmButtonState, currButtonState)) {
-    // Nap Time
+  } else if (timeButton.wasPressed()) {
+    // Nap Time: add 45 minutes
     DateTime now = rtc.now();
-    TimeSpan duration(0, 0, 45, 0); 
-
-    // Add the duration to the current time to get a future time
+    TimeSpan duration(0, 0, 45, 0);
     DateTime nap = now + duration;
     napHour = nap.hour();
-    napMinute = nap.minute();
+    napMin = nap.minute();
     napOn = !napOn;
   }
 }
 
 void handleSnoozeButton() {
-  bool currButtonState = !digitalRead(snoozePin);
-  if (isButtonHold(currButtonState) || wasButtonPress(prevAlarmButtonState, currButtonState)) {
+  if (snoozeButton.wasHeld() || snoozeButton.wasPressed()) {
+    Serial.println("Snooze button pressed");
     if (inAlarm) {
-      // need to figure out snooze
-
+      // TODO: implement snooze
     } else {
-      // turn on the lights
+      if (isGlowing) {
+        glowOff();
+      } else {
+        glowOn();
+      }
     }
   }
 }
@@ -344,6 +343,13 @@ void handleAdjusting() {
   printTimeOled(prevAdjustHour, prevAdjustMin);
 }
 
+void handleGlow() {
+  if (isGlowing) {
+    if (millis() - glowStart >= glowDuration) {
+      glowOff();
+    }
+  }
+}
 void adjustHours() {
   int delta = handleEncoder();
   int hour = prevAdjustHour + delta;
@@ -367,6 +373,18 @@ void adjustMin() {
   }
   Serial.println("Min = " + String(min));
   prevAdjustMin = min;
+}
+
+void initGlow() {
+  Serial.println("Adafruit AW9523 GPIO Expander test!");
+
+  if (!aw.begin(0x58)) {
+    Serial.println("AW9523 not found? Check wiring!");
+    while (1) delay(10);  // halt forever
+  }
+
+  Serial.println("AW9523 found!");
+  aw.pinMode(glowPin, OUTPUT);
 }
 
 void initRTC() {
@@ -490,4 +508,16 @@ void screenOff() {
 void screenOn() {
   oled.ssd1306_command(SSD1306_DISPLAYON);
   isScreenOn = true;
+}
+
+void glowOn() {
+  aw.digitalWrite(glowPin, LOW);
+  isGlowing = true;
+  glowStart = millis();
+}
+
+
+void glowOff() {
+  aw.digitalWrite(glowPin, HIGH);
+  isGlowing = false;
 }
