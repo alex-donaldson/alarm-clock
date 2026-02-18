@@ -157,12 +157,9 @@ void drawEink() {
     Serial.println("Failed to perform reading :(");
     return;
   }
-  // eink.setCursor(0, 0);
   eink.setTextColor(EPD_BLACK);
   eink.setTextWrap(true);
   DateTime now = rtc.now();
-  char timeStr[6];  // Enough for "HH:MM" + null terminator
-  sprintf(timeStr, "%02d:%02d", now.hour(), now.minute());
   eink.print(getTimeString(now.hour(), now.minute()));
   Serial.println(getTimeString(now.hour(), now.minute()));
 
@@ -349,13 +346,11 @@ void handleEncoderButtonPress() {
       } else if (adjustingMin) {
         Serial.println("done adjusting. Mins set to: " + String(prevAdjustMin));
         adjustingMin = false;
-        // all done editing, time to set the thing
         if (adjustingTime) {
           Serial.println("Setting time");
           DateTime now = rtc.now();
           rtc.adjust(DateTime(now.year(), now.month(), now.day(), prevAdjustHour, prevAdjustMin, now.second()));
         } else if (adjustingAlarm) {
-          // adjustingAlarm
           alarmHour = prevAdjustHour;
           alarmMin = prevAdjustMin;
         }
@@ -363,7 +358,6 @@ void handleEncoderButtonPress() {
         adjustingAlarm = false;
         screenOff();
         drawEink();
-        // }
       }
     }
   }
@@ -429,6 +423,7 @@ void handleGlow() {
     }
   }
 }
+
 void adjustHours() {
   int delta = handleEncoder();
   int hour = prevAdjustHour + delta;
@@ -540,25 +535,20 @@ void initEink() {
 }
 
 void initOled() {
-  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if (!oled.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
     Serial.println(F("SSD1306 allocation failed"));
-    for (;;)
-      ;  // Don't proceed, loop forever
+    for (;;);
   }
 
-  // Show initial display buffer contents on the screen --
-  // the library initializes this with an Adafruit splash screen.
   Serial.println("turning on screen");
   oled.display();
-  delay(200);  // Pause for 2 seconds
+  delay(200);
   Serial.println("trying to print the time");
 
   DateTime now = rtc.now();
   printTimeOled(now.hour(), now.minute());
-  delay(2000);  // Pause for 2 seconds
+  delay(2000);
 
-  // Clear the buffer
   oled.clearDisplay();
   screenOff();
   Serial.println("screen init done");
@@ -566,14 +556,12 @@ void initOled() {
 
 void drawTextOled(String text) {
   if (isScreenOn) {
-
     oled.clearDisplay();
-
-    oled.setTextSize(4);  // Draw 4X-scale text
+    oled.setTextSize(4);
     oled.setTextColor(SSD1306_WHITE);
     oled.setCursor(5, 0);
     oled.println(text);
-    oled.display();  // Show initial text
+    oled.display();
     delay(100);
   }
 }
