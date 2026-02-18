@@ -59,11 +59,16 @@ Adafruit_AW9523 aw;
 
 bool alarmOn = false;
 bool inAlarm = false;
+bool isSnoozed = false;
+bool isNapping = false;
 uint8_t alarmHour = 0;
 uint8_t alarmMin = 0;
 uint8_t napHour = 0;
 uint8_t napMin = 0;
-bool napOn = false;
+uint8_t snoozeHour = 0;
+uint8_t snoozeMin = 0;
+TimeSpan napDuration(0, 0, 45, 0); // 45 min
+TimeSpan snoozeDuration(0, 0, 9, 0); // 9 min
 bool adjustingTime = false;
 bool adjustingAlarm = false;
 bool adjustingHour = false;
@@ -86,8 +91,8 @@ int glowDuration = 20000;  // light stays on for 20 seconds
 bool isGlowing = false;
 
 // Button pins (adjust to your wiring)
-const uint8_t alarmPin = 2;
-const uint8_t timePin = 3;
+const uint8_t alarmPin = 9;
+const uint8_t timePin = 6;
 const uint8_t snoozePin = 5;
 const uint8_t glowPin = 1;
 
@@ -146,7 +151,6 @@ void drawEink() {
   eink.setTextSize(10);
   int timeX = (eink.width() - 200) / 2;
   int timeY = (eink.height() - 60) / 2;
-  Serial.println("X: " + String(timeX) + " Y: " + String(timeY));
   eink.setCursor(timeX, timeY);
 
   if (!bme.performReading()) {
@@ -160,6 +164,7 @@ void drawEink() {
   char timeStr[6];  // Enough for "HH:MM" + null terminator
   sprintf(timeStr, "%02d:%02d", now.hour(), now.minute());
   eink.print(getTimeString(now.hour(), now.minute()));
+  Serial.println(getTimeString(now.hour(), now.minute()));
 
   eink.setCursor(timeX, timeY + 80);
   eink.setTextSize(2);
@@ -167,17 +172,52 @@ void drawEink() {
   eink.println("Hum: " + String(bme.humidity) + "%");
   eink.setCursor(timeX, timeY + 80 + 20);
   eink.print("mmHG: " + String(getPressure()) + "  ");
+
+  Serial.print("Temp: " + String(getTemp()) + "F  ");
+  Serial.println("Hum: " + String(bme.humidity) + "%");
+  Serial.print("mmHG: " + String(getPressure()) + "  ");
+
+  eink.print(" -- " + getPressureTrendString());
+  Serial.println(" -- " + getPressureTrendString());
+
+
+  // TODO when i have eink again, make layout
+  Serial.println(getAlarmStateString());
+  Serial.println(getNapStateString());
+
+  eink.display();
+  delay(200);
+}
+
+String getAlarmStateString() {
+  String alarmString = "Alarm: ";
+  if (alarmOn) {
+    alarmString = alarmString + getTimeString(alarmHour, alarmMin);
+  } else {
+    alarmString = alarmString + "OFF";
+  }
+  return alarmString;
+}
+
+
+String getNapStateString() {
+  String napString = "Nap: ";
+  if (isNapping) {
+    napString += getTimeString(napHour, napMin);
+  } else {
+    napString += "OFF";
+  }
+  return napString;
+}
+
+String getPressureTrendString() {
   String trend = "same";
   if (pressureTrend > 0) {
     trend = "better";
   } else if (pressureTrend < 0) {
     trend = "worse";
   }
-  eink.print(" -- " + trend);
-  Serial.println("printing to eink");
-
-  eink.display();
-  delay(200);
+  return trend;
 }
 
 void checkPressureTrend() {
@@ -236,6 +276,7 @@ void setupAdjusting() {
   printTimeOled(prevAdjustHour, prevAdjustMin);
 }
 
+// Button Handlers
 void handleAlarmButton() {
   // alarmButton state machine handles debouncing and hold detection
   if (alarmButton.wasHeld()) {
@@ -246,6 +287,13 @@ void handleAlarmButton() {
   } else if (alarmButton.wasPressed()) {
     // toggle alarm
     alarmOn = !alarmOn;
+    String alarmText = "Alarm ";
+    if (alarmOn) {
+      alarmText += "on";
+    } else {
+      alarmText += "off";
+    }
+    drawTempTextOled(alarmText);
   }
 }
 
@@ -256,13 +304,17 @@ void handleTimeButton() {
       adjustingTime = true;
     }
   } else if (timeButton.wasPressed()) {
-    // Nap Time: add 45 minutes
-    DateTime now = rtc.now();
-    TimeSpan duration(0, 0, 45, 0);
-    DateTime nap = now + duration;
-    napHour = nap.hour();
-    napMin = nap.minute();
-    napOn = !napOn;
+    isNapping = !isNapping;
+    if (isNapping) {
+      // Nap Time: add 45 minutes
+      DateTime now = rtc.now();
+      DateTime nap = now + napDuration;
+      napHour = nap.hour();
+      napMin = nap.minute();
+      drawTempTextOled("Nap time");
+    } else {
+      drawTempTextOled("Nap off");
+    }
   }
 }
 
@@ -270,7 +322,12 @@ void handleSnoozeButton() {
   if (snoozeButton.wasHeld() || snoozeButton.wasPressed()) {
     Serial.println("Snooze button pressed");
     if (inAlarm) {
-      // TODO: implement snooze
+      inAlarm = false;
+      DateTime now = rtc.now();
+      DateTime snooze = now + snoozeDuration;
+      snoozeHour = snooze.hour();
+      snoozeMin = snooze.minute();
+      isSnoozed = true;
     } else {
       if (isGlowing) {
         glowOff();
@@ -312,8 +369,30 @@ void handleEncoderButtonPress() {
   }
 }
 
+void drawTempTextOled(String text) {
+  screenOn();
+  drawTextOled(text);
+  delay(1000);
+  screenOff();
+}
+
 void printTimeOled(uint8_t hour, uint8_t min) {
   drawTextOled(getTimeString(hour, min));
+}
+
+void checkAndUpdateAlarm() {
+  DateTime now = rtc.now();
+  if (alarmOn && now.hour() == alarmHour && now.minute() == alarmMin) {
+    inAlarm = true;
+  } else if (isSnoozed && now.hour() == snoozeHour && now.minute() == snoozeMin) {
+    inAlarm = true;
+  } else if (isNapping && now.hour() == napHour && now.minute() == napMin) {
+    inAlarm = true;
+  }
+}
+
+void handleAlarm() {
+  // Do something to make alarm sounds.
 }
 
 int handleEncoder() {
@@ -472,7 +551,7 @@ void initOled() {
   // the library initializes this with an Adafruit splash screen.
   Serial.println("turning on screen");
   oled.display();
-  delay(2000);  // Pause for 2 seconds
+  delay(200);  // Pause for 2 seconds
   Serial.println("trying to print the time");
 
   DateTime now = rtc.now();
@@ -490,7 +569,7 @@ void drawTextOled(String text) {
 
     oled.clearDisplay();
 
-    oled.setTextSize(4);  // Draw 2X-scale text
+    oled.setTextSize(4);  // Draw 4X-scale text
     oled.setTextColor(SSD1306_WHITE);
     oled.setCursor(5, 0);
     oled.println(text);
