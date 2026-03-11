@@ -11,14 +11,13 @@
 #include <Adafruit_AW9523.h>
 #include "Button.h"
 
-#define SRAM_CS 6
-#define EPD_CS 9
-#define EPD_DC 10
+#define SRAM_CS     6
+#define EPD_CS      9
+#define EPD_DC      10
 
 #define EPD_SPI &SPI  // primary SPI
 #define EPD_RESET -1  // can set to -1 and share with microcontroller Reset!
 #define EPD_BUSY -1   // can set to -1 to not use a pin (will wait a fixed delay)
-
 
 #define BME_SCK 13
 #define BME_MISO 12
@@ -28,8 +27,8 @@
 #define SEALEVELPRESSURE_HPA (1013.25)
 Adafruit_BME680 bme(&Wire);
 
-// 4.2" Grayscale/Monochrome displays with 400x300 pixels and SSD1683 chipset
-ThinkInk_420_Grayscale4_MFGN eink(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY, EPD_SPI);
+// 4.2" Grayscale/Monochrome displays with 416x240 pixels and SSD1683 chipset
+ThinkInk_370_Mono_BAAMFGN eink(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY, EPD_SPI);
 
 RTC_PCF8523 rtc;
 char daysOfTheWeek[7][12] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
@@ -71,6 +70,10 @@ TimeSpan napDuration(0, 0, 45, 0); // 45 min
 TimeSpan snoozeDuration(0, 0, 9, 0); // 9 min
 bool adjustingTime = false;
 bool adjustingAlarm = false;
+bool adjustingDate = false;
+bool adjustingMonth = false;
+bool adjustingDay = false;
+bool adjustingYear = false;
 bool adjustingHour = false;
 bool adjustingMin = false;
 bool isScreenOn = true;
@@ -79,6 +82,9 @@ bool isAdjusting = false;
 int encoder_position = 0;
 uint8_t prevAdjustHour = 0;
 uint8_t prevAdjustMin = 0;
+uint8_t prevAdjustMonth = 1;
+uint8_t prevAdjustDay = 1;
+uint16_t prevAdjustYear = 2024;
 bool prevEncoderButtonState = false;
 
 uint8_t prevTimeMin = 0;
@@ -103,6 +109,7 @@ Button snoozeButton(snoozePin, true, 1000);
 
 void setup() {
   Serial.begin(115200);
+  Serial.flush();
   initGlow();
   glowOff();
   while (!Serial) delay(10);
@@ -147,38 +154,42 @@ int getPressure() {
 }
 
 void drawEink() {
+  eink.flush();
   eink.clearBuffer();
-  eink.setTextSize(10);
-  int timeX = (eink.width() - 200) / 2;
-  int timeY = (eink.height() - 60) / 2;
-  eink.setCursor(timeX, timeY);
+  eink.setTextSize(4);
+  eink.setTextColor(EPD_BLACK);
+  eink.setTextWrap(true);
 
   if (!bme.performReading()) {
     Serial.println("Failed to perform reading :(");
     return;
   }
-  eink.setTextColor(EPD_BLACK);
-  eink.setTextWrap(true);
-  DateTime now = rtc.now();
-  eink.print(getTimeString(now.hour(), now.minute()));
-  Serial.println(getTimeString(now.hour(), now.minute()));
 
-  eink.setCursor(timeX, timeY + 80);
+  DateTime now = rtc.now();
+  String timeStr = getTimeString(now.hour(), now.minute());
+  
+  // Center the time text
+  int16_t x1, y1;
+  uint16_t w, h;
+  eink.getTextBounds(timeStr, 0, 0, &x1, &y1, &w, &h);
+  int timeX = (eink.width() - w) / 2;
+  int timeY = (eink.height() / 2) - (h / 2);
+  
+  eink.setCursor(timeX, timeY);
+  eink.print(timeStr);
+  Serial.println(timeStr);
+
   eink.setTextSize(2);
-  eink.print("Temp: " + String(getTemp()) + "F  ");
-  eink.println("Hum: " + String(bme.humidity) + "%");
-  eink.setCursor(timeX, timeY + 80 + 20);
-  eink.print("mmHG: " + String(getPressure()) + "  ");
+  eink.setCursor(10, timeY + 80);
+  eink.print("Temp: " + String(getTemp()) + "F");
+  eink.println("  Hum: " + String(bme.humidity) + "%");
+  eink.print("mmHG: " + String(getPressure()) + " -- " + getPressureTrendString());
 
   Serial.print("Temp: " + String(getTemp()) + "F  ");
   Serial.println("Hum: " + String(bme.humidity) + "%");
-  Serial.print("mmHG: " + String(getPressure()) + "  ");
+  Serial.print("mmHG: " + String(getPressure()) + " -- ");
+  Serial.println(getPressureTrendString());
 
-  eink.print(" -- " + getPressureTrendString());
-  Serial.println(" -- " + getPressureTrendString());
-
-
-  // TODO when i have eink again, make layout
   Serial.println(getAlarmStateString());
   Serial.println(getNapStateString());
 
@@ -270,14 +281,27 @@ void setupAdjusting() {
   prevAdjustMin = now.minute();
   isAdjusting = true;
   screenOn();
-  printTimeOled(prevAdjustHour, prevAdjustMin);
+  printTimeOledWithSelection(prevAdjustHour, prevAdjustMin, adjustingHour, adjustingMin);
+}
+
+void setupDateAdjusting() {
+  Serial.println("Adjusting Month");
+  adjustingMonth = true;
+  DateTime now = rtc.now();
+  prevAdjustMonth = now.month();
+  prevAdjustDay = now.day();
+  prevAdjustYear = now.year();
+  isAdjusting = true;
+  adjustingDate = true;
+  screenOn();
+  printDateOledWithSelection(prevAdjustMonth, prevAdjustDay, prevAdjustYear, adjustingMonth, adjustingDay, adjustingYear);
 }
 
 // Button Handlers
 void handleAlarmButton() {
   // alarmButton state machine handles debouncing and hold detection
   if (alarmButton.wasHeld()) {
-    if (!adjustingHour && !adjustingMin) {
+    if (!adjustingHour && !adjustingMin && !adjustingMonth && !adjustingDay && !adjustingYear) {
       setupAdjusting();
       adjustingAlarm = true;
     }
@@ -296,7 +320,7 @@ void handleAlarmButton() {
 
 void handleTimeButton() {
   if (timeButton.wasHeld()) {
-    if (!adjustingHour && !adjustingMin) {
+    if (!adjustingHour && !adjustingMin && !adjustingMonth && !adjustingDay && !adjustingYear) {
       setupAdjusting();
       adjustingTime = true;
     }
@@ -316,7 +340,12 @@ void handleTimeButton() {
 }
 
 void handleSnoozeButton() {
-  if (snoozeButton.wasHeld() || snoozeButton.wasPressed()) {
+  if (snoozeButton.wasHeld()) {
+    Serial.println("Snooze button held");
+    if (!adjustingHour && !adjustingMin && !adjustingMonth && !adjustingDay && !adjustingYear) {
+      setupDateAdjusting();
+    }
+  } else if (snoozeButton.wasPressed()) {
     Serial.println("Snooze button pressed");
     if (inAlarm) {
       inAlarm = false;
@@ -358,6 +387,24 @@ void handleEncoderButtonPress() {
         adjustingAlarm = false;
         screenOff();
         drawEink();
+      } else if (adjustingMonth) {
+        Serial.println("Adjusting Day. Month set to: " + String(prevAdjustMonth));
+        adjustingMonth = false;
+        adjustingDay = true;
+      } else if (adjustingDay) {
+        Serial.println("Adjusting Year. Day set to: " + String(prevAdjustDay));
+        adjustingDay = false;
+        adjustingYear = true;
+      } else if (adjustingYear) {
+        Serial.println("Done adjusting date. Year set to: " + String(prevAdjustYear));
+        adjustingYear = false;
+        adjustingDate = false;
+        isAdjusting = false;
+        Serial.println("Setting date");
+        DateTime now = rtc.now();
+        rtc.adjust(DateTime(prevAdjustYear, prevAdjustMonth, prevAdjustDay, now.hour(), now.minute(), now.second()));
+        screenOff();
+        drawEink();
       }
     }
   }
@@ -372,6 +419,60 @@ void drawTempTextOled(String text) {
 
 void printTimeOled(uint8_t hour, uint8_t min) {
   drawTextOled(getTimeString(hour, min));
+}
+
+void printDateOledWithSelection(uint8_t month, uint8_t day, uint16_t year, bool highlightMonth, bool highlightDay, bool highlightYear) {
+  if (isScreenOn) {
+    oled.clearDisplay();
+    oled.setTextSize(2);  // Smaller text for date
+    
+    // Month names
+    const char* monthNames[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+                               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+    
+    int cursorX = 5;
+    int cursorY = 0;
+    
+    // Draw month
+    if (highlightMonth) {
+      oled.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+    } else {
+      oled.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+    }
+    oled.setCursor(cursorX, cursorY);
+    oled.print(monthNames[month - 1]);
+    
+    // Draw space
+    oled.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+    oled.print(" ");
+    
+    // Draw day
+    char dayStr[3];
+    sprintf(dayStr, "%02d", day);
+    if (highlightDay) {
+      oled.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+    } else {
+      oled.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+    }
+    oled.print(dayStr);
+    
+    // Draw comma and space
+    oled.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+    oled.print(", ");
+    
+    // Draw year
+    char yearStr[5];
+    sprintf(yearStr, "%04d", year);
+    if (highlightYear) {
+      oled.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+    } else {
+      oled.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+    }
+    oled.print(yearStr);
+    
+    oled.display();
+    delay(100);
+  }
 }
 
 void checkAndUpdateAlarm() {
@@ -412,8 +513,19 @@ void handleAdjusting() {
     adjustHours();
   } else if (adjustingMin) {
     adjustMin();
+  } else if (adjustingMonth) {
+    adjustMonth();
+  } else if (adjustingDay) {
+    adjustDay();
+  } else if (adjustingYear) {
+    adjustYear();
   }
-  printTimeOled(prevAdjustHour, prevAdjustMin);
+  
+  if (adjustingDate) {
+    printDateOledWithSelection(prevAdjustMonth, prevAdjustDay, prevAdjustYear, adjustingMonth, adjustingDay, adjustingYear);
+  } else {
+    printTimeOledWithSelection(prevAdjustHour, prevAdjustMin, adjustingHour, adjustingMin);
+  }
 }
 
 void handleGlow() {
@@ -447,6 +559,57 @@ void adjustMin() {
   }
   Serial.println("Min = " + String(min));
   prevAdjustMin = min;
+}
+
+void adjustMonth() {
+  int delta = handleEncoder();
+  int month = prevAdjustMonth + delta;
+  if (month == 0) {
+    month = 12;
+  } else if (month == 13) {
+    month = 1;
+  }
+  Serial.println("Month = " + String(month));
+  prevAdjustMonth = month;
+}
+
+void adjustDay() {
+  int delta = handleEncoder();
+  int day = prevAdjustDay + delta;
+  
+  // Get max days for the current month/year
+  int maxDays = getMaxDaysInMonth(prevAdjustMonth, prevAdjustYear);
+  
+  if (day < 1) {
+    day = maxDays;
+  } else if (day > maxDays) {
+    day = 1;
+  }
+  Serial.println("Day = " + String(day));
+  prevAdjustDay = day;
+}
+
+int getMaxDaysInMonth(int month, int year) {
+  switch (month) {
+    case 2: // February
+      return (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) ? 29 : 28;
+    case 4: case 6: case 9: case 11: // 30-day months
+      return 30;
+    default: // 31-day months
+      return 31;
+  }
+}
+
+void adjustYear() {
+  int delta = handleEncoder();
+  int year = prevAdjustYear + delta;
+  if (year < 2020) {
+    year = 2020;
+  } else if (year > 2050) {
+    year = 2050;
+  }
+  Serial.println("Year = " + String(year));
+  prevAdjustYear = year;
 }
 
 void initGlow() {
@@ -530,8 +693,8 @@ void initSeesaw() {
 
 void initEink() {
   Serial.println("Adafruit EPD full update test in mono");
-  Serial.println("4.2 Monochrome EPD with SSD1683 chipset");
-  eink.begin(THINKINK_MONO);
+  Serial.println("3.7 Monochrome EPD with UC8253 chipset");
+  eink.begin();
 }
 
 void initOled() {
@@ -579,6 +742,7 @@ void screenOn() {
 
 void glowOn() {
   aw.digitalWrite(glowPin, LOW);
+  Serial.println("glow on");
   isGlowing = true;
   glowStart = millis();
 }
@@ -587,4 +751,5 @@ void glowOn() {
 void glowOff() {
   aw.digitalWrite(glowPin, HIGH);
   isGlowing = false;
+  Serial.println("glow off");
 }
